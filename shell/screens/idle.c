@@ -7,6 +7,7 @@
 #define SETTING "screen_off_seconds"
 #define DEFAULT_SECONDS 300
 #define CHECK_MS 1000
+#define RESTORE_PERCENT 80
 
 const int idle_options[IDLE_OPTION_COUNT] = { 60, 300, 900, 0 };
 const char *const idle_labels[IDLE_OPTION_COUNT] = { "1 min", "5 min", "15 min", "Never" };
@@ -55,7 +56,11 @@ static void wake(lv_event_t *e)
 
 static void blank(void)
 {
-    if (!backlight_get(&idle.saved_brightness) || !backlight_blank())
+    if (!backlight_get(&idle.saved_brightness))
+        return;
+    if (idle.saved_brightness < BACKLIGHT_MIN_PERCENT)
+        idle.saved_brightness = RESTORE_PERCENT;
+    if (!backlight_blank())
         return;
     idle.catcher = lv_obj_create(lv_layer_sys());
     lv_obj_remove_style_all(idle.catcher);
@@ -76,6 +81,9 @@ static void check(lv_timer_t *timer)
 
 void idle_start(void)
 {
+    int percent;
+    if (backlight_get(&percent) && percent < BACKLIGHT_MIN_PERCENT)
+        backlight_set(RESTORE_PERCENT);
     idle.timeout = prefs_get_int(SETTING, DEFAULT_SECONDS);
     lv_timer_create(check, CHECK_MS, NULL);
 }
