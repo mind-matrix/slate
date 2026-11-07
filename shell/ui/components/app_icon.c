@@ -4,8 +4,9 @@
 
 #define TILE_SIZE 112
 #define TILE_GAP 14
+#define GLYPH_SIZE 52
 
-lv_obj_t *sui_app_icon_create(lv_obj_t *parent, const char *glyph, const char *label, uint32_t color)
+lv_obj_t *sui_app_icon_create(lv_obj_t *parent, sui_glyph_t glyph, const char *label, uint32_t color)
 {
     lv_obj_t *icon = sui_box_create(parent);
     lv_obj_add_flag(icon, LV_OBJ_FLAG_CLICKABLE);
@@ -21,11 +22,7 @@ lv_obj_t *sui_app_icon_create(lv_obj_t *parent, const char *glyph, const char *l
     lv_obj_set_style_bg_color(tile, lv_color_hex(color), 0);
     lv_obj_set_style_bg_opa(tile, SUI_TINT_OPA, 0);
 
-    lv_obj_t *mark = lv_label_create(tile);
-    lv_label_set_text(mark, glyph);
-    lv_obj_set_style_text_font(mark, sui_font(SUI_TEXT_DISPLAY), 0);
-    lv_obj_set_style_text_color(mark, lv_color_hex(color), 0);
-    lv_obj_center(mark);
+    lv_obj_center(sui_glyph_create(tile, glyph, GLYPH_SIZE, color));
 
     lv_obj_t *name = lv_label_create(icon);
     lv_label_set_text(name, label);
