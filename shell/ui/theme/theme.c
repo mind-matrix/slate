@@ -2,6 +2,13 @@
 
 #include <math.h>
 
+LV_FONT_DECLARE(slate_font_14)
+LV_FONT_DECLARE(slate_font_16)
+LV_FONT_DECLARE(slate_font_20)
+LV_FONT_DECLARE(slate_font_24)
+LV_FONT_DECLARE(slate_font_32)
+LV_FONT_DECLARE(slate_font_48)
+
 static lv_style_t screen_style;
 static lv_style_t pressed_style;
 static bool initialized;
@@ -27,18 +34,18 @@ const lv_font_t *sui_font(sui_text_t text)
 {
     switch (text) {
     case SUI_TEXT_CAPTION:
-        return &lv_font_montserrat_14;
+        return &slate_font_14;
     case SUI_TEXT_ROW:
-        return &lv_font_montserrat_20;
+        return &slate_font_20;
     case SUI_TEXT_HEADING:
-        return &lv_font_montserrat_24;
+        return &slate_font_24;
     case SUI_TEXT_TITLE:
-        return &lv_font_montserrat_32;
+        return &slate_font_32;
     case SUI_TEXT_DISPLAY:
-        return &lv_font_montserrat_48;
+        return &slate_font_48;
     case SUI_TEXT_BODY:
     default:
-        return &lv_font_montserrat_16;
+        return &slate_font_16;
     }
 }
 
