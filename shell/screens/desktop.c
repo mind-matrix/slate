@@ -1,11 +1,11 @@
 #include "desktop.h"
 
 #include "about.h"
+#include "clock_app.h"
 #include "terminal.h"
 #include "components/app_icon.h"
 #include "components/wallpaper.h"
 #include "platform/platform.h"
-#include "settings.h"
 #include "theme/theme.h"
 
 #define GRID_PAD_HOR 64
@@ -21,8 +21,8 @@ typedef struct {
 } app_t;
 
 static const app_t apps[] = {
-    { SUI_SYMBOL(LV_SYMBOL_SETTINGS), "Settings", SUI_COLOR_CAT_WIFI, &settings_screen },
     { SUI_VECTOR(SUI_ICON_TERMINAL), "Terminal", SUI_COLOR_CAT_TERMINAL, &terminal_screen },
+    { SUI_VECTOR(SUI_ICON_CLOCK), "Clock", SUI_COLOR_CAT_CLOCK, &clock_app_screen },
     { SUI_VECTOR(SUI_ICON_INFO), "About", SUI_COLOR_CAT_SYSTEM, &about_screen },
 };
 

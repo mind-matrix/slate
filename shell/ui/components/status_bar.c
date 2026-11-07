@@ -2,9 +2,12 @@
 
 #include <string.h>
 #include <time.h>
+#include "components/icon.h"
 #include "theme/theme.h"
 
 #define CLOCK_PERIOD_MS 1000
+#define ALARM_GLYPH 20
+#define DOT_SIZE 8
 #define HANDLE_W 48
 #define HANDLE_H 5
 #define HANDLE_BOTTOM 2
@@ -13,6 +16,9 @@ typedef struct {
     void (*on_pull)(void);
     lv_obj_t *wifi;
     lv_obj_t *bluetooth;
+    lv_obj_t *bell;
+    lv_obj_t *dot;
+    lv_obj_t *alarm;
 } status_bar_t;
 
 static status_bar_t status;
@@ -78,6 +84,18 @@ lv_obj_t *sui_status_bar_create(lv_obj_t *parent, void (*on_pull)(void))
     lv_obj_t *icons = sui_box_create(bar);
     lv_obj_set_flex_flow(icons, LV_FLEX_FLOW_ROW);
     lv_obj_set_style_pad_column(icons, SUI_SPACE_L, 0);
+    lv_obj_set_flex_align(icons, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    status.bell = add_icon(icons, LV_SYMBOL_BELL);
+    status.dot = sui_box_create(status.bell);
+    lv_obj_add_flag(status.dot, LV_OBJ_FLAG_IGNORE_LAYOUT);
+    lv_obj_set_size(status.dot, DOT_SIZE, DOT_SIZE);
+    lv_obj_set_style_radius(status.dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(status.dot, lv_color_hex(SUI_COLOR_CAT_SOUND), 0);
+    lv_obj_set_style_bg_opa(status.dot, LV_OPA_COVER, 0);
+    lv_obj_align(status.dot, LV_ALIGN_TOP_RIGHT, 2, -1);
+    status.alarm = sui_glyph_create(icons, SUI_VECTOR(SUI_ICON_ALARM), ALARM_GLYPH, SUI_COLOR_TEXT_MUTED);
+    lv_obj_add_flag(status.bell, LV_OBJ_FLAG_HIDDEN);
+    lv_obj_add_flag(status.alarm, LV_OBJ_FLAG_HIDDEN);
     status.wifi = add_icon(icons, LV_SYMBOL_WIFI);
     status.bluetooth = add_icon(icons, LV_SYMBOL_BLUETOOTH);
     add_icon(icons, LV_SYMBOL_VOLUME_MAX);
@@ -98,4 +116,13 @@ void sui_status_bar_set_radios(bool wifi, bool bluetooth)
         return;
     show(status.wifi, wifi);
     show(status.bluetooth, bluetooth);
+}
+
+void sui_status_bar_set_alerts(bool notifications, bool unseen, bool alarm)
+{
+    if (!status.bell)
+        return;
+    show(status.bell, notifications);
+    show(status.dot, unseen);
+    show(status.alarm, alarm);
 }

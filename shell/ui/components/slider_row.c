@@ -10,10 +10,11 @@
 #define KNOB_GROW 10
 #define TOUCH_EXTRA 20
 #define VALUE_W 64
+#define TITLE_GLYPH_W 32
 
 static lv_obj_t *value_label(lv_obj_t *row)
 {
-    return lv_obj_get_child(row, 2);
+    return lv_obj_get_user_data(sui_slider_row_slider(row));
 }
 
 static void show_value(lv_obj_t *row)
@@ -70,6 +71,8 @@ lv_obj_t *sui_slider_row_create(lv_obj_t *parent, sui_glyph_t glyph, uint32_t co
     lv_obj_set_style_text_font(value, sui_font(SUI_TEXT_ROW), 0);
     lv_obj_set_style_text_color(value, lv_color_hex(SUI_COLOR_TEXT), 0);
 
+    lv_obj_set_user_data(row, slider);
+    lv_obj_set_user_data(slider, value);
     lv_obj_add_event_cb(slider, on_change, LV_EVENT_VALUE_CHANGED, row);
     show_value(row);
     return row;
@@ -77,7 +80,34 @@ lv_obj_t *sui_slider_row_create(lv_obj_t *parent, sui_glyph_t glyph, uint32_t co
 
 lv_obj_t *sui_slider_row_slider(lv_obj_t *row)
 {
-    return lv_obj_get_child(row, 1);
+    return lv_obj_get_user_data(row);
+}
+
+lv_obj_t *sui_slider_row_value(lv_obj_t *row)
+{
+    return value_label(row);
+}
+
+void sui_slider_row_set_title(lv_obj_t *row, const char *title, const char *detail, int32_t width)
+{
+    lv_obj_t *texts = sui_box_create(row);
+    lv_obj_set_size(texts, width, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(texts, 1, 0);
+    lv_obj_t *label = lv_label_create(texts);
+    lv_label_set_text(label, title);
+    lv_obj_set_style_text_font(label, sui_font(SUI_TEXT_ROW), 0);
+    lv_obj_set_style_text_color(label, lv_color_hex(SUI_COLOR_TEXT), 0);
+    if (detail) {
+        label = lv_label_create(texts);
+        lv_label_set_text(label, detail);
+        lv_obj_set_style_text_font(label, sui_font(SUI_TEXT_CAPTION), 0);
+        lv_obj_set_style_text_color(label, lv_color_hex(SUI_COLOR_TEXT_MUTED), 0);
+    }
+    lv_obj_move_to_index(texts, 1);
+    lv_obj_t *glyph = lv_obj_get_child(row, 0);
+    lv_obj_set_width(glyph, TITLE_GLYPH_W);
+    lv_obj_set_style_text_align(glyph, LV_TEXT_ALIGN_CENTER, 0);
 }
 
 void sui_slider_row_set_value(lv_obj_t *row, int32_t value)

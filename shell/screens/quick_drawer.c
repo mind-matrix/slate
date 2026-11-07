@@ -5,12 +5,18 @@
 #include "backlight.h"
 #include "bluetooth.h"
 #include "bt.h"
+#include "clock_app.h"
 #include "components/icon.h"
 #include "components/quick_tile.h"
 #include "components/slider_row.h"
 #include "net.h"
 #include "nav/nav.h"
+#include "notification_hub.h"
+#include "notify.h"
+#include "platform/platform.h"
 #include "power_screen.h"
+#include "settings.h"
+#include "software_update.h"
 #include "theme/theme.h"
 #include "wifi.h"
 
@@ -21,7 +27,8 @@
 #define CONTROLS_W 720
 #define CONTROL_GAP 12
 #define SLIDER_ROW_H 72
-#define POWER_SIZE 56
+#define ACTION_SIZE 56
+#define ACTION_GLYPH 24
 #define HANDLE_W 120
 #define HANDLE_H 24
 #define HANDLE_BAR_W 48
@@ -42,6 +49,7 @@ typedef struct {
     lv_obj_t *bt;
     lv_obj_t *brightness;
     lv_obj_t *volume;
+    lv_obj_t *hub;
     lv_timer_t *clock_timer;
     lv_timer_t *refresh_timer;
     int32_t panel_h;
@@ -204,6 +212,23 @@ static void open_power(lv_event_t *e)
     open_screen(&power_screen);
 }
 
+static void open_settings(lv_event_t *e)
+{
+    (void)e;
+    open_screen(&settings_screen);
+}
+
+static void open_owner(notify_owner_t owner)
+{
+    static const sui_screen_def_t *const screens[NOTIFY_OWNER_COUNT] = {
+        [NOTIFY_CLOCK] = &clock_app_screen,
+        [NOTIFY_UPDATE] = &software_update_screen,
+        [NOTIFY_BLUETOOTH] = &bluetooth_screen,
+    };
+    if (owner < NOTIFY_OWNER_COUNT)
+        open_screen(screens[owner]);
+}
+
 static void set_brightness(lv_event_t *e)
 {
     backlight_set((int)lv_slider_get_value(lv_event_get_target(e)));
@@ -224,6 +249,19 @@ static lv_obj_t *add_column(lv_obj_t *parent, lv_flex_flow_t flow)
     return column;
 }
 
+static void add_action(lv_obj_t *parent, const char *symbol, uint32_t fill, uint32_t ink, lv_event_cb_t cb)
+{
+    lv_obj_t *button = sui_box_create(parent);
+    lv_obj_add_flag(button, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_set_size(button, ACTION_SIZE, ACTION_SIZE);
+    lv_obj_set_style_radius(button, SUI_RADIUS_ROW, 0);
+    lv_obj_set_style_bg_color(button, lv_color_hex(fill), 0);
+    lv_obj_set_style_bg_opa(button, LV_OPA_COVER, 0);
+    lv_obj_add_style(button, sui_style_pressed(), LV_STATE_PRESSED);
+    lv_obj_add_event_cb(button, cb, LV_EVENT_CLICKED, NULL);
+    lv_obj_center(sui_glyph_create(button, SUI_SYMBOL(symbol), ACTION_GLYPH, ink));
+}
+
 static void create_top_row(lv_obj_t *panel)
 {
     lv_obj_t *row = sui_box_create(panel);
@@ -241,15 +279,11 @@ static void create_top_row(lv_obj_t *panel)
     lv_obj_set_style_text_color(drawer.date, lv_color_hex(SUI_COLOR_TEXT_MUTED), 0);
     lv_obj_set_style_pad_bottom(drawer.date, SUI_SPACE_S, 0);
 
-    lv_obj_t *power = sui_box_create(row);
-    lv_obj_add_flag(power, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(power, POWER_SIZE, POWER_SIZE);
-    lv_obj_set_style_radius(power, SUI_RADIUS_ROW, 0);
-    lv_obj_set_style_bg_color(power, lv_color_hex(SUI_COLOR_DANGER_FILL), 0);
-    lv_obj_set_style_bg_opa(power, LV_OPA_COVER, 0);
-    lv_obj_add_style(power, sui_style_pressed(), LV_STATE_PRESSED);
-    lv_obj_add_event_cb(power, open_power, LV_EVENT_CLICKED, NULL);
-    lv_obj_center(sui_glyph_create(power, SUI_SYMBOL(LV_SYMBOL_POWER), 24, SUI_COLOR_WHITE));
+    lv_obj_t *actions = sui_box_create(row);
+    lv_obj_set_flex_flow(actions, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(actions, CONTROL_GAP, 0);
+    add_action(actions, LV_SYMBOL_SETTINGS, SUI_COLOR_RAISED, SUI_COLOR_TEXT, open_settings);
+    add_action(actions, LV_SYMBOL_POWER, SUI_COLOR_DANGER_FILL, SUI_COLOR_WHITE, open_power);
 }
 
 static lv_obj_t *add_slider(lv_obj_t *parent, sui_glyph_t glyph, uint32_t color, int32_t min, lv_event_cb_t cb,
@@ -281,6 +315,30 @@ static void create_controls(lv_obj_t *panel)
                                LV_EVENT_RELEASED);
 }
 
+static void layout_panel(void)
+{
+    bool has_items = notify_items()->count > 0;
+    lv_obj_set_height(drawer.panel, has_items ? SUI_SCREEN_H + PANEL_RADIUS : LV_SIZE_CONTENT);
+    lv_obj_set_height(drawer.hub, LV_SIZE_CONTENT);
+    lv_obj_set_flex_grow(drawer.hub, has_items ? 1 : 0);
+    lv_obj_update_layout(drawer.scrim);
+    drawer.panel_h = lv_obj_get_height(drawer.panel);
+}
+
+static void on_notify(void)
+{
+    if (!drawer.hub || drawer.closing)
+        return;
+    notification_hub_refresh(drawer.hub);
+    layout_panel();
+}
+
+static void create_hub(lv_obj_t *panel)
+{
+    drawer.hub = notification_hub_create(panel, open_owner);
+    lv_obj_set_width(drawer.hub, CONTROLS_W);
+}
+
 static void create_handle(lv_obj_t *panel)
 {
     lv_obj_t *handle = sui_box_create(panel);
@@ -297,8 +355,14 @@ static void create_handle(lv_obj_t *panel)
 
 void quick_drawer_open(void)
 {
+    static bool listening;
     if (drawer.scrim)
         return;
+    if (!listening) {
+        notify_on_change(on_notify);
+        listening = true;
+    }
+    notify_mark_seen();
 
     drawer.scrim = sui_box_create(lv_layer_top());
     lv_obj_add_flag(drawer.scrim, LV_OBJ_FLAG_CLICKABLE);
@@ -328,6 +392,7 @@ void quick_drawer_open(void)
 
     create_top_row(drawer.panel);
     create_controls(drawer.panel);
+    create_hub(drawer.panel);
     create_handle(drawer.panel);
 
     update_clock(NULL);
@@ -336,8 +401,7 @@ void quick_drawer_open(void)
     drawer.clock_timer = lv_timer_create(update_clock, CLOCK_MS, NULL);
     drawer.refresh_timer = lv_timer_create(refresh_tiles, REFRESH_MS, NULL);
 
-    lv_obj_update_layout(drawer.scrim);
-    drawer.panel_h = lv_obj_get_height(drawer.panel);
+    layout_panel();
     animate(NULL, 0);
     run_anim(0, 100, NULL);
 }

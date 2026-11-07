@@ -6,5 +6,6 @@
 
 lv_obj_t *sui_status_bar_create(lv_obj_t *parent, void (*on_pull)(void));
 void sui_status_bar_set_radios(bool wifi, bool bluetooth);
+void sui_status_bar_set_alerts(bool notifications, bool unseen, bool alarm);
 
 #endif

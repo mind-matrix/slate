@@ -8,6 +8,8 @@
 
 lv_obj_t *sui_slider_row_create(lv_obj_t *parent, sui_glyph_t glyph, uint32_t color, int32_t min, int32_t max);
 lv_obj_t *sui_slider_row_slider(lv_obj_t *row);
+lv_obj_t *sui_slider_row_value(lv_obj_t *row);
+void sui_slider_row_set_title(lv_obj_t *row, const char *title, const char *detail, int32_t width);
 void sui_slider_row_set_value(lv_obj_t *row, int32_t value);
 void sui_slider_row_set_available(lv_obj_t *row, bool available);
 

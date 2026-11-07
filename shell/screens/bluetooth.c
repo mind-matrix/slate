@@ -7,6 +7,7 @@
 #include "components/dialog.h"
 #include "components/list.h"
 #include "components/switch.h"
+#include "notify.h"
 #include "settings_ui.h"
 #include "theme/theme.h"
 
@@ -306,9 +307,105 @@ static void confirm_pairing(const char *device, uint32_t passkey, void *user)
     lv_obj_add_event_cb(pair, answer, LV_EVENT_CLICKED, (void *)1);
 }
 
+#define NOTICE_KEY_MAX (BT_OBJECT_MAX + 16)
+#define NOTICE_CONNECTED "connected:"
+#define NOTICE_FAILED "pair-failed:"
+
+typedef struct {
+    bool seeded;
+    char paths[BT_MAX_DEVICES][BT_OBJECT_MAX];
+    size_t count;
+} connections_t;
+
+static connections_t connections;
+
+static bool was_connected(const char *path)
+{
+    for (size_t i = 0; i < connections.count; i++)
+        if (strcmp(connections.paths[i], path) == 0)
+            return true;
+    return false;
+}
+
+static void notice_key(char *out, size_t len, const char *kind, const char *path)
+{
+    size_t used = strlen(kind);
+    snprintf(out, len, "%s%.*s", kind, (int)(len > used + 1 ? len - used - 1 : 0), path);
+}
+
+static void on_pair_failed(const char *path)
+{
+    bt_device_t devices[BT_MAX_DEVICES];
+    size_t count = bt_list(devices, BT_MAX_DEVICES);
+    const char *name = "The device";
+    for (size_t i = 0; i < count; i++)
+        if (strcmp(devices[i].path, path) == 0)
+            name = devices[i].name;
+    char key[NOTICE_KEY_MAX], body[BT_NAME_MAX + 48];
+    notice_key(key, sizeof(key), NOTICE_FAILED, path);
+    snprintf(body, sizeof(body), "%s · try again from Bluetooth", name);
+    notify_post(NOTIFY_BLUETOOTH, NOTIFY_ICON_BLUETOOTH, key, "Pairing failed", body);
+}
+
+static const bt_device_t *find_device(const bt_device_t *devices, size_t count, const char *path)
+{
+    for (size_t i = 0; i < count; i++)
+        if (strcmp(devices[i].path, path) == 0)
+            return &devices[i];
+    return NULL;
+}
+
+static bool still_true(const notify_t *n, bool powered, const bt_device_t *devices, size_t count)
+{
+    if (!powered)
+        return false;
+    size_t prefix = strlen(NOTICE_CONNECTED);
+    if (strncmp(n->key, NOTICE_CONNECTED, prefix) == 0) {
+        const bt_device_t *d = find_device(devices, count, n->key + prefix);
+        return d && d->connected;
+    }
+    const bt_device_t *d = find_device(devices, count, n->key + strlen(NOTICE_FAILED));
+    return !d || !d->paired;
+}
+
+static void drop_stale(bool powered, const bt_device_t *devices, size_t count)
+{
+    const notify_list_t *items = notify_items();
+    char keys[NOTIFY_MAX][NOTIFY_KEY_MAX];
+    size_t stale = 0;
+    for (size_t i = 0; i < items->count; i++)
+        if (items->items[i].owner == NOTIFY_BLUETOOTH && !still_true(&items->items[i], powered, devices, count))
+            snprintf(keys[stale++], NOTIFY_KEY_MAX, "%s", items->items[i].key);
+    for (size_t i = 0; i < stale; i++)
+        notify_remove(NOTIFY_BLUETOOTH, keys[i]);
+}
+
+void bluetooth_notices_poll(void)
+{
+    bt_device_t devices[BT_MAX_DEVICES];
+    bool powered = bt_powered();
+    size_t count = powered ? bt_list(devices, BT_MAX_DEVICES) : 0;
+    drop_stale(powered, devices, count);
+
+    connections_t now = { .seeded = true };
+    for (size_t i = 0; i < count; i++) {
+        if (!devices[i].connected)
+            continue;
+        if (connections.seeded && !was_connected(devices[i].path)) {
+            char key[NOTICE_KEY_MAX], title[BT_NAME_MAX + 16];
+            notice_key(key, sizeof(key), NOTICE_CONNECTED, devices[i].path);
+            snprintf(title, sizeof(title), "%s connected", devices[i].name);
+            notify_post(NOTIFY_BLUETOOTH, NOTIFY_ICON_BLUETOOTH, key, title, bt_kind_label(devices[i].icon));
+        }
+        memcpy(now.paths[now.count++], devices[i].path, BT_OBJECT_MAX);
+    }
+    connections = now;
+}
+
 void bluetooth_agent_init(void)
 {
     bt_agent_start(confirm_pairing, NULL);
+    bt_on_pair_failed(on_pair_failed);
 }
 
 const sui_screen_def_t bluetooth_screen = {

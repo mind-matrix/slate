@@ -26,6 +26,7 @@
 #define SUI_COLOR_CAT_DISPLAY 0xFFC65C
 #define SUI_COLOR_CAT_SYSTEM 0x5FD3C4
 #define SUI_COLOR_CAT_TERMINAL 0x5FD39A
+#define SUI_COLOR_CAT_CLOCK 0xFF9FC8
 
 #define SUI_TINT_OPA 41
 
@@ -61,6 +62,7 @@ typedef enum {
 void sui_theme_init(void);
 const lv_font_t *sui_font(sui_text_t text);
 const lv_font_t *sui_font_mono(void);
+const lv_font_t *sui_font_digits(void);
 double sui_contrast_ratio(uint32_t a, uint32_t b);
 lv_obj_t *sui_screen_create(void);
 lv_obj_t *sui_box_create(lv_obj_t *parent);

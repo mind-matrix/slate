@@ -26,3 +26,8 @@ lv_font_conv --no-compress --no-prefilter --no-kerning --bpp 4 --size 18 \
 	--font "${MONO_FONT}" -r "${MONO_RANGES}" \
 	--format lvgl --lv-include lvgl.h \
 	-o "${OUT_DIR}/slate_mono_18.c"
+
+lv_font_conv --no-compress --no-prefilter --bpp 4 --size 96 \
+	--font "${SOURCE_FONTS}/Montserrat-Medium.ttf" -r "0x20,0x2B,0x2D-0x2E,0x30-0x3A" \
+	--format lvgl --force-fast-kern-format --lv-include lvgl.h \
+	-o "${OUT_DIR}/slate_digits_96.c"

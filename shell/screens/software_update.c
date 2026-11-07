@@ -8,6 +8,7 @@
 #include "components/switch.h"
 #include "diagnostics.h"
 #include "power.h"
+#include "notify.h"
 #include "prefs.h"
 #include "settings_ui.h"
 #include "sysinfo.h"
@@ -15,6 +16,10 @@
 #include "update.h"
 
 #define AUTO_SETTING "update_auto_check"
+#define DISMISSED_SETTING "update_dismissed"
+#define NOTICE_AVAILABLE "available"
+#define NOTICE_FAILED "failed"
+#define NOTICE_POLL_MS 5000
 #define AUTO_CHECK_MS (10 * 60 * 1000)
 #define REFRESH_MS 1000
 #define CARD_PAD 28
@@ -486,18 +491,73 @@ static void on_hide(lv_obj_t *screen)
     view.timer = NULL;
 }
 
+static bool failure_dismissed;
+
+static void on_dismiss(const char *key)
+{
+    update_status_t status;
+    update_read(&status);
+    if (strcmp(key, NOTICE_AVAILABLE) == 0)
+        prefs_set_text(DISMISSED_SETTING, status.version);
+    else
+        failure_dismissed = true;
+}
+
+static void sync_notices(const update_status_t *status)
+{
+    char dismissed[UPDATE_TEXT_MAX], body[TEXT];
+    if (status->state != UPDATE_ERROR)
+        failure_dismissed = false;
+    switch (status->state) {
+    case UPDATE_AVAILABLE:
+        notify_remove(NOTIFY_UPDATE, NOTICE_FAILED);
+        prefs_get_text(DISMISSED_SETTING, dismissed, sizeof(dismissed));
+        if (strcmp(dismissed, status->version) != 0 && !notify_has(NOTIFY_UPDATE, NOTICE_AVAILABLE)) {
+            snprintf(body, sizeof(body), "Slate %s is ready to install", status->version);
+            notify_post(NOTIFY_UPDATE, NOTIFY_ICON_UPDATE, NOTICE_AVAILABLE, "Update available", body);
+        }
+        break;
+    case UPDATE_ERROR:
+        if (!failure_dismissed && !notify_has(NOTIFY_UPDATE, NOTICE_FAILED))
+            notify_post(NOTIFY_UPDATE, NOTIFY_ICON_UPDATE, NOTICE_FAILED, "Update failed",
+                        "Open Software update to try again");
+        break;
+    case UPDATE_CHECKING:
+    case UPDATE_DOWNLOADING:
+    case UPDATE_INSTALLING:
+        notify_remove(NOTIFY_UPDATE, NOTICE_FAILED);
+        break;
+    default:
+        notify_remove(NOTIFY_UPDATE, NOTICE_AVAILABLE);
+        notify_remove(NOTIFY_UPDATE, NOTICE_FAILED);
+        break;
+    }
+}
+
 static void auto_check(lv_timer_t *timer)
 {
     (void)timer;
     update_status_t status;
     update_read(&status);
+    sync_notices(&status);
     if (auto_enabled() && update_check_due(&status, (int64_t)time(NULL)))
         update_start_check();
 }
 
+static void watch_notices(lv_timer_t *timer)
+{
+    (void)timer;
+    update_status_t status;
+    update_read(&status);
+    sync_notices(&status);
+}
+
 void software_update_start_auto_check(void)
 {
+    notify_on_dismiss(NOTIFY_UPDATE, on_dismiss);
+    watch_notices(NULL);
     lv_timer_create(auto_check, AUTO_CHECK_MS, NULL);
+    lv_timer_create(watch_notices, NOTICE_POLL_MS, NULL);
 }
 
 const sui_screen_def_t software_update_screen = {

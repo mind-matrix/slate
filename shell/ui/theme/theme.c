@@ -9,6 +9,7 @@ LV_FONT_DECLARE(slate_font_24)
 LV_FONT_DECLARE(slate_font_32)
 LV_FONT_DECLARE(slate_font_48)
 LV_FONT_DECLARE(slate_mono_18)
+LV_FONT_DECLARE(slate_digits_96)
 
 static lv_style_t screen_style;
 static lv_style_t pressed_style;
@@ -93,4 +94,9 @@ const lv_style_t *sui_style_pressed(void)
 const lv_font_t *sui_font_mono(void)
 {
     return &slate_mono_18;
+}
+
+const lv_font_t *sui_font_digits(void)
+{
+    return &slate_digits_96;
 }

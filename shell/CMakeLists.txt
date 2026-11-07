@@ -65,6 +65,7 @@ add_library(slateui STATIC
     ui/theme/fonts/slate_font_32.c
     ui/theme/fonts/slate_font_48.c
     ui/theme/fonts/slate_mono_18.c
+    ui/theme/fonts/slate_digits_96.c
     ui/nav/nav.c
     ui/components/status_bar.c
     ui/components/app_icon.c
@@ -75,6 +76,7 @@ add_library(slateui STATIC
     ui/components/keyboard.c
     ui/components/list.c
     ui/components/quick_tile.c
+    ui/components/roller.c
     ui/components/segmented.c
     ui/components/slider_row.c
     ui/components/stat_card.c
@@ -122,7 +124,11 @@ add_library(slatescreens STATIC
     screens/sound.c
     screens/power_screen.c
     screens/terminal.c
-    screens/software_update.c)
+    screens/software_update.c
+    screens/notification_hub.c
+    screens/clock_app.c
+    screens/clock_sheets.c
+    screens/clock_alerts.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)
