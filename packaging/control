@@ -2,7 +2,7 @@ Package: slate
 Version: @VERSION@
 Architecture: arm64
 Maintainer: Sagnik Modak <sagnikmodak1118@gmail.com>
-Depends: libc6, libdrm2, libsystemd0, libvterm0, curl, jq, minisign, wireplumber, libspa-0.2-bluetooth
+Depends: libc6, libdrm2, libsystemd0, libvterm0, curl, jq, minisign, wireplumber, pipewire-bin, libspa-0.2-bluetooth
 Section: misc
 Priority: optional
 Homepage: https://github.com/mind-matrix/slate

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "prefs.h"
 
 #define VOLUME_TAG "[vol:"
 
@@ -103,4 +104,92 @@ const char *audio_kind_label(const char *inspect, audio_direction_t direction)
     if (strstr(inspect, ".usb-") || strstr(inspect, "\"usb\""))
         return direction == AUDIO_OUTPUT ? "USB audio" : "USB microphone";
     return direction == AUDIO_OUTPUT ? "Built-in audio" : "Built-in microphone";
+}
+
+static const char *const role_nodes[AUDIO_ROLE_COUNT] = {
+    [AUDIO_ROLE_MEDIA] = "role.multimedia",
+    [AUDIO_ROLE_ALARM] = "role.alarm",
+    [AUDIO_ROLE_NOTIFICATION] = "role.notification",
+};
+
+static const char *const role_media[AUDIO_ROLE_COUNT] = {
+    [AUDIO_ROLE_MEDIA] = "Multimedia",
+    [AUDIO_ROLE_ALARM] = "Alarm",
+    [AUDIO_ROLE_NOTIFICATION] = "Notification",
+};
+
+static const struct {
+    const char *key;
+    int fallback;
+} levels[] = {
+    [AUDIO_ROLE_MEDIA] = { AUDIO_LEVEL_MEDIA, 100 },
+    [AUDIO_ROLE_ALARM] = { AUDIO_LEVEL_ALARM, 100 },
+    [AUDIO_ROLE_NOTIFICATION] = { AUDIO_LEVEL_NOTIFICATION, 70 },
+    [AUDIO_ROLE_COUNT] = { AUDIO_LEVEL_DUCK, 30 },
+};
+
+const char *audio_role_media(audio_role_t role)
+{
+    return role < AUDIO_ROLE_COUNT ? role_media[role] : "";
+}
+
+bool audio_parse_role_ids(const char *status, uint32_t ids[AUDIO_ROLE_COUNT])
+{
+    size_t found = 0;
+    for (size_t r = 0; r < AUDIO_ROLE_COUNT; r++)
+        ids[r] = 0;
+    for (const char *line = status; *line;) {
+        const char *next = strchr(line, '\n');
+        size_t len = next ? (size_t)(next - line) : strlen(line);
+        for (size_t r = 0; r < AUDIO_ROLE_COUNT; r++) {
+            char node[64];
+            snprintf(node, sizeof(node), "input.loopback.sink.%s ", role_nodes[r]);
+            if (ids[r] || !line_has(line, len, node) || !line_has(line, len, "[Audio/Sink]"))
+                continue;
+            const char *p = line;
+            while (p < line + len && !isdigit((unsigned char)*p))
+                p++;
+            ids[r] = (uint32_t)strtoul(p, NULL, 10);
+            found += ids[r] != 0;
+        }
+        line = next ? next + 1 : line + len;
+    }
+    return found == AUDIO_ROLE_COUNT;
+}
+
+static int level_index(const char *key)
+{
+    for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++)
+        if (strcmp(levels[i].key, key) == 0)
+            return (int)i;
+    return -1;
+}
+
+int audio_level(const char *key)
+{
+    int i = level_index(key);
+    return i < 0 ? 0 : prefs_get_int(key, levels[i].fallback);
+}
+
+static bool apply(int index, int percent)
+{
+    return index == AUDIO_ROLE_COUNT ? audio_set_duck_level(percent)
+                                     : audio_set_role_volume((audio_role_t)index, percent);
+}
+
+void audio_set_level(const char *key, int percent)
+{
+    int i = level_index(key);
+    if (i < 0)
+        return;
+    prefs_set_int(key, percent);
+    apply(i, percent);
+}
+
+bool audio_apply_levels(void)
+{
+    bool ok = true;
+    for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++)
+        ok = apply((int)i, audio_level(levels[i].key)) && ok;
+    return ok;
 }

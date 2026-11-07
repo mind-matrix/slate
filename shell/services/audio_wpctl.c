@@ -70,3 +70,24 @@ bool audio_set_default(uint32_t id)
     snprintf(command, sizeof(command), "wpctl set-default %u 2>/dev/null", id);
     return system(command) == 0;
 }
+
+bool audio_set_role_volume(audio_role_t role, int percent)
+{
+    char *status = malloc(STATUS_BUF);
+    uint32_t ids[AUDIO_ROLE_COUNT];
+    bool found = status && run("wpctl status 2>/dev/null", status, STATUS_BUF) && audio_parse_role_ids(status, ids);
+    free(status);
+    if (!found || role >= AUDIO_ROLE_COUNT)
+        return false;
+    char command[96];
+    snprintf(command, sizeof(command), "wpctl set-volume %u %d%% >/dev/null 2>&1", ids[role], percent);
+    return system(command) == 0;
+}
+
+bool audio_set_duck_level(int percent)
+{
+    char command[112];
+    snprintf(command, sizeof(command), "wpctl settings linking.role-based.duck-level %d.%02d >/dev/null 2>&1",
+             percent / 100, percent % 100);
+    return system(command) == 0;
+}

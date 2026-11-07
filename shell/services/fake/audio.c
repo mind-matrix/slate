@@ -56,3 +56,15 @@ bool audio_set_default(uint32_t id)
     default_output = id;
     return true;
 }
+
+bool audio_set_role_volume(audio_role_t role, int percent)
+{
+    (void)percent;
+    return role < AUDIO_ROLE_COUNT;
+}
+
+bool audio_set_duck_level(int percent)
+{
+    (void)percent;
+    return true;
+}

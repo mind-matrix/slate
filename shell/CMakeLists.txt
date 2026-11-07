@@ -34,7 +34,8 @@ if(SLATE_BACKEND STREQUAL "sdl")
         services/fake/backlight.c
         services/fake/power.c
         services/fake/update.c
-        services/fake/timesync.c)
+        services/fake/timesync.c
+        services/fake/chime.c)
 elseif(SLATE_BACKEND STREQUAL "drm")
     pkg_check_modules(DRM REQUIRED IMPORTED_TARGET libdrm)
     set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c ui/platform/keyboard.c)
@@ -45,7 +46,8 @@ elseif(SLATE_BACKEND STREQUAL "drm")
         services/backlight_sysfs.c
         services/power_logind.c
         services/update_systemd.c
-        services/timesync.c)
+        services/timesync.c
+        services/chime_pwplay.c)
     set(SLATE_BACKEND_LIBS PkgConfig::DRM)
 else()
     message(FATAL_ERROR "SLATE_BACKEND must be sdl or drm")
@@ -95,6 +97,7 @@ add_library(slateservices STATIC
     services/update.c
     services/notify.c
     services/clock.c
+    services/chime.c
     ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)

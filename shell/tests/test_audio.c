@@ -1,4 +1,6 @@
+#include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include "audio.h"
 #include "check.h"
@@ -32,6 +34,24 @@ static const char status[] =
     "Settings\n"
     " └─ Default Configured Devices:\n"
     "         0. Audio/Sink    bluez_output.AA_BB.1\n";
+
+static const char filters[] =
+    "Audio\n"
+    " ├─ Sinks:\n"
+    " │  *   62. Built-in Audio                      [vol: 0.40]\n"
+    " │  \n"
+    " ├─ Filters:\n"
+    " │    - loopback-1955-18\n"
+    " │      69. input.loopback.sink.role.multimedia                          [Audio/Sink]\n"
+    " │      77. output.loopback.sink.role.multimedia                         [Stream/Output/Audio]\n"
+    " │    - loopback-1955-20\n"
+    " │      70. input.loopback.sink.role.alarm                               [Audio/Sink]\n"
+    " │      81. output.loopback.sink.role.alarm                              [Stream/Output/Audio]\n"
+    " │    - loopback-1955-19\n"
+    " │      79. input.loopback.sink.role.notification                        [Audio/Sink]\n"
+    " │      80. output.loopback.sink.role.notification                       [Stream/Output/Audio]\n"
+    " │  \n"
+    " └─ Streams:\n";
 
 static void test_parse_volume(void)
 {
@@ -74,8 +94,37 @@ static void test_kind_label(void)
     CHECK(strcmp(audio_kind_label("device.api = \"alsa\"", AUDIO_OUTPUT), "Built-in audio") == 0);
 }
 
+static void test_roles(void)
+{
+    uint32_t ids[AUDIO_ROLE_COUNT];
+    CHECK(audio_parse_role_ids(filters, ids));
+    CHECK(ids[AUDIO_ROLE_MEDIA] == 69 && ids[AUDIO_ROLE_ALARM] == 70 && ids[AUDIO_ROLE_NOTIFICATION] == 79);
+    CHECK(!audio_parse_role_ids(status, ids));
+    CHECK(ids[AUDIO_ROLE_MEDIA] == 0);
+
+    audio_device_t sinks[AUDIO_MAX_DEVICES];
+    CHECK(audio_parse_status(filters, AUDIO_OUTPUT, sinks, AUDIO_MAX_DEVICES) == 1);
+    CHECK(sinks[0].id == 62);
+    CHECK(strcmp(audio_role_media(AUDIO_ROLE_ALARM), "Alarm") == 0);
+}
+
+static void test_level_defaults(void)
+{
+    char home[] = "/tmp/slate-audio-XXXXXX";
+    CHECK(mkdtemp(home) != NULL);
+    setenv("HOME", home, 1);
+    CHECK(audio_level(AUDIO_LEVEL_MEDIA) == 100);
+    CHECK(audio_level(AUDIO_LEVEL_ALARM) == 100);
+    CHECK(audio_level(AUDIO_LEVEL_NOTIFICATION) == 70);
+    CHECK(audio_level(AUDIO_LEVEL_DUCK) == 30);
+    CHECK(audio_level("unknown") == 0);
+    rmdir(home);
+}
+
 int main(void)
 {
+    test_roles();
+    test_level_defaults();
     test_parse_volume();
     test_parse_status();
     test_kind_label();

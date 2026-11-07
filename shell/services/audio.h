@@ -8,11 +8,22 @@
 #define AUDIO_NAME_MAX 64
 #define AUDIO_KIND_MAX 48
 #define AUDIO_MAX_DEVICES 8
+#define AUDIO_LEVEL_MEDIA "sound_media"
+#define AUDIO_LEVEL_ALARM "sound_alarm"
+#define AUDIO_LEVEL_NOTIFICATION "sound_notification"
+#define AUDIO_LEVEL_DUCK "sound_duck"
 
 typedef enum {
     AUDIO_OUTPUT,
     AUDIO_INPUT,
 } audio_direction_t;
+
+typedef enum {
+    AUDIO_ROLE_MEDIA,
+    AUDIO_ROLE_ALARM,
+    AUDIO_ROLE_NOTIFICATION,
+    AUDIO_ROLE_COUNT,
+} audio_role_t;
 
 typedef struct {
     uint32_t id;
@@ -30,5 +41,13 @@ bool audio_set_volume(audio_direction_t direction, int percent);
 bool audio_set_muted(audio_direction_t direction, bool muted);
 size_t audio_list(audio_direction_t direction, audio_device_t *out, size_t max);
 bool audio_set_default(uint32_t id);
+
+const char *audio_role_media(audio_role_t role);
+bool audio_parse_role_ids(const char *status, uint32_t ids[AUDIO_ROLE_COUNT]);
+bool audio_set_role_volume(audio_role_t role, int percent);
+bool audio_set_duck_level(int percent);
+bool audio_apply_levels(void);
+int audio_level(const char *key);
+void audio_set_level(const char *key, int percent);
 
 #endif
