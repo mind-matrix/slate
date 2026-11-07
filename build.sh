@@ -40,9 +40,11 @@ prepare_pi_gen() {
 	touch "$PI_GEN_DIR"/stage{3,4,5}/SKIP "$PI_GEN_DIR"/stage{2,4,5}/SKIP_IMAGES
 }
 
-build_shell() {
+build_package() {
 	"$SOURCE_DIR/shell/build.sh" pi
-	install -D -m 755 "$BUILD_ROOT/shell/pi/slate-shell" "$SYNCED_DIR/stages/stage-slate/05-shell/files/slate-shell"
+	local package
+	package="$("$SOURCE_DIR/packaging/build-deb.sh" "$BUILD_ROOT/shell/pi/slate-shell" "$BUILD_ROOT/deb")"
+	install -D -m 644 "$package" "$SYNCED_DIR/stages/stage-slate/05-shell/files/slate.deb"
 }
 
 copy_to_windows() {
@@ -64,7 +66,6 @@ write_pi_gen_config() {
 			cat "$SYNCED_DIR/config/local.conf"
 		fi
 		echo "export SLATE_BUILD_TYPE=$variant"
-		echo "export SLATE_VERSION=\"$image_date · $(git -c safe.directory='*' -C "$SOURCE_DIR" describe --always --dirty)\""
 		echo "export IMG_NAME=slate-$variant"
 		echo "export IMG_DATE=$image_date"
 		echo "export STAGE_LIST=\"stage0 stage1 stage2 $stage_paths\""
@@ -78,7 +79,7 @@ main() {
 	image_date="$(date +%Y-%m-%d)"
 
 	sync_sources
-	build_shell
+	build_package
 	prepare_pi_gen
 	for stage in $custom_stages; do
 		stage_paths="$stage_paths $SYNCED_DIR/stages/$stage"

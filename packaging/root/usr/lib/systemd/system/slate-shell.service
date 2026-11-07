@@ -7,7 +7,7 @@ Conflicts=getty@tty1.service
 User=marvin
 SupplementaryGroups=video render input
 Environment=XDG_RUNTIME_DIR=/run/user/1000
-ExecStart=/usr/local/bin/slate-shell
+ExecStart=/usr/bin/slate-shell
 Restart=always
 RestartSec=1
 OOMScoreAdjust=500

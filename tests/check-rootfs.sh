@@ -51,22 +51,29 @@ for timer in apt-daily.timer apt-daily-upgrade.timer e2scrub_all.timer; do
 done
 check "journald is volatile" file_exists /etc/systemd/journald.conf.d/50-slate.conf
 check "swap uses zram" file_exists /etc/rpi/swap.conf.d/50-slate.conf
-check "polkit rule for marvin" file_exists /etc/polkit-1/rules.d/50-slate.rules
+check "polkit rule for marvin" file_exists /usr/share/polkit-1/rules.d/50-slate.rules
 check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
 check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
 check "marvin is in bluetooth group" in_group bluetooth marvin
-check "bluetooth audio works without a seat" file_exists /etc/wireplumber/wireplumber.conf.d/50-slate-bluez.conf
+check "bluetooth audio works without a seat" file_exists /usr/share/wireplumber/wireplumber.conf.d/50-slate-bluez.conf
 check "camera auto-detect is off" boot_config_has camera_auto_detect=0
 check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
-check "slate-shell is installed" test -x "$ROOTFS/usr/local/bin/slate-shell"
+check "the slate package is installed" installed slate
+check "slate-shell is installed" test -x "$ROOTFS/usr/bin/slate-shell"
 check "slate-shell starts at boot" unit_enabled slate-shell.service
-check "slate-shell can reach the audio session" grep -qx "Environment=XDG_RUNTIME_DIR=/run/user/1000" "$ROOTFS/etc/systemd/system/slate-shell.service"
+check "slate-shell can reach the audio session" grep -qx "Environment=XDG_RUNTIME_DIR=/run/user/1000" "$ROOTFS/usr/lib/systemd/system/slate-shell.service"
 check "build type is recorded" grep -qx "SLATE_BUILD_TYPE=$VARIANT" "$ROOTFS/etc/slate-release"
 check "tty1 login is replaced by the shell" unit_disabled getty@tty1.service
+check "the installed version is recorded" grep -q "^SLATE_VERSION=" "$ROOTFS/usr/lib/slate/release"
+check "updates are verified with the Slate key" file_exists /usr/share/slate/update.pub
+check "the updater is installed" test -x "$ROOTFS/usr/lib/slate/slate-update"
+check "interrupted updates are recovered at boot" unit_enabled slate-update-recover.service
+check "the updater can verify and download" installed minisign
+check "no stale shell copy in /usr/local" test ! -e "$ROOTFS/usr/local/bin/slate-shell"
 case "$VARIANT" in
 	dev)
-		check "marvin can redeploy the shell" owned_by marvin /usr/local/bin/slate-shell
+		check "marvin can redeploy the shell" owned_by marvin /usr/bin/slate-shell
 		check "marvin can restart the shell" file_exists /etc/polkit-1/rules.d/50-slate-shell-deploy.rules
 		check "ssh is enabled" ssh_enabled
 		check "evtest is installed" installed evtest
@@ -75,7 +82,7 @@ case "$VARIANT" in
 	release)
 		check "ssh is disabled" ssh_disabled
 		check "evtest is not installed" not_installed evtest
-		check "shell binary is root-owned" owned_by root /usr/local/bin/slate-shell
+		check "shell binary is root-owned" owned_by root /usr/bin/slate-shell
 		;;
 	*) usage ;;
 esac

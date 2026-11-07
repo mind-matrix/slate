@@ -1,6 +1,5 @@
 #!/bin/bash -e
 
-install -D -m 644 files/50-slate.rules "${ROOTFS_DIR}/etc/polkit-1/rules.d/50-slate.rules"
 install -D -m 644 files/memlock-user-manager.conf "${ROOTFS_DIR}/etc/systemd/system/user@1000.service.d/50-slate-memlock.conf"
 install -D -m 644 files/memlock.conf "${ROOTFS_DIR}/etc/systemd/user.conf.d/50-slate-memlock.conf"
 install -D -m 644 files/memlock-limits.conf "${ROOTFS_DIR}/etc/security/limits.d/50-slate-memlock.conf"
