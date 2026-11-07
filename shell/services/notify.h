@@ -6,11 +6,11 @@
 #include <stdint.h>
 
 #define NOTIFY_MAX 50
-#define NOTIFY_KEY_MAX 48
+#define NOTIFY_KEY_MAX 96
 #define NOTIFY_TITLE_MAX 64
 #define NOTIFY_BODY_MAX 128
 #define NOTIFY_WHEN_MAX 24
-#define NOTIFY_TEXT_MAX (NOTIFY_MAX * 288)
+#define NOTIFY_TEXT_MAX (NOTIFY_MAX * 320)
 
 typedef enum {
     NOTIFY_CLOCK,

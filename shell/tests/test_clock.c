@@ -55,12 +55,12 @@ static void test_collect_alarms(void)
     s.alarms[1].id = 2;
     clock_event_t events[CLOCK_MAX_EVENTS];
 
-    CHECK(clock_collect(&s, SAT_1210 + 200, 0, events, CLOCK_MAX_EVENTS) == 0);
-    CHECK(clock_collect(&s, SAT_1210 + 330, 0, events, CLOCK_MAX_EVENTS) == 1);
+    CHECK(clock_collect(&s, true, SAT_1210 + 200, 0, events, CLOCK_MAX_EVENTS) == 0);
+    CHECK(clock_collect(&s, true, SAT_1210 + 330, 0, events, CLOCK_MAX_EVENTS) == 1);
     CHECK(events[0].kind == CLOCK_EVENT_ALARM && events[0].id == 1 && events[0].at == SAT_1210 + 300);
-    CHECK(clock_collect(&s, SAT_1210 + 360, 0, events, CLOCK_MAX_EVENTS) == 0);
+    CHECK(clock_collect(&s, true, SAT_1210 + 360, 0, events, CLOCK_MAX_EVENTS) == 0);
 
-    CHECK(clock_collect(&s, SAT_1210 + 600 + 700, 0, events, CLOCK_MAX_EVENTS) == 1);
+    CHECK(clock_collect(&s, true, SAT_1210 + 600 + 700, 0, events, CLOCK_MAX_EVENTS) == 1);
     CHECK(events[0].kind == CLOCK_EVENT_ALARM_MISSED && events[0].id == 2);
     CHECK(!s.alarms[1].on);
 
@@ -76,7 +76,7 @@ static void test_collect_first_run(void)
     clock_state_t s = { .alarm_count = 1 };
     s.alarms[0] = alarm_at(12, 0, CLOCK_EVERY_DAY);
     clock_event_t events[CLOCK_MAX_EVENTS];
-    CHECK(clock_collect(&s, SAT_1210, 0, events, CLOCK_MAX_EVENTS) == 0);
+    CHECK(clock_collect(&s, true, SAT_1210, 0, events, CLOCK_MAX_EVENTS) == 0);
     CHECK(s.last_seen == SAT_1210);
 }
 
@@ -90,14 +90,27 @@ static void test_collect_reminders_and_timers(void)
     s.timers[1] = (clock_timer_t){ .id = 21, .total_ms = 9000, .left_ms = 9000 };
     clock_event_t events[CLOCK_MAX_EVENTS];
 
-    size_t n = clock_collect(&s, SAT_1210 + 61, 5000, events, CLOCK_MAX_EVENTS);
+    size_t n = clock_collect(&s, true, SAT_1210 + 61, 5000, events, CLOCK_MAX_EVENTS);
     CHECK(n == 3);
-    CHECK(events[0].kind == CLOCK_EVENT_REMINDER && events[0].id == 10);
-    CHECK(events[1].kind == CLOCK_EVENT_REMINDER_MISSED && events[1].id == 11);
-    CHECK(events[2].kind == CLOCK_EVENT_TIMER && events[2].id == 20);
+    CHECK(events[0].kind == CLOCK_EVENT_TIMER && events[0].id == 20);
+    CHECK(events[1].kind == CLOCK_EVENT_REMINDER && events[1].id == 10);
+    CHECK(events[2].kind == CLOCK_EVENT_REMINDER_MISSED && events[2].id == 11);
     CHECK(s.reminders[0].fired && s.reminders[1].fired && !s.reminders[2].fired);
     CHECK(s.timers[0].left_ms == 0 && s.timers[0].deadline == 0);
-    CHECK(clock_collect(&s, SAT_1210 + 62, 6000, events, CLOCK_MAX_EVENTS) == 0);
+    CHECK(clock_collect(&s, true, SAT_1210 + 62, 6000, events, CLOCK_MAX_EVENTS) == 0);
+}
+
+static void test_collect_unsynced(void)
+{
+    clock_state_t s = { .alarm_count = 1, .reminder_count = 1, .timer_count = 1, .last_seen = SAT_1210 };
+    s.alarms[0] = alarm_at(12, 11, CLOCK_EVERY_DAY);
+    s.reminders[0] = (clock_reminder_t){ .id = 10, .when = SAT_1210 + 30 };
+    s.timers[0] = (clock_timer_t){ .id = 20, .total_ms = 1000, .left_ms = 1000, .deadline = 1000 };
+    clock_event_t events[CLOCK_MAX_EVENTS];
+    CHECK(clock_collect(&s, false, SAT_1210 + 90, 2000, events, CLOCK_MAX_EVENTS) == 1);
+    CHECK(events[0].kind == CLOCK_EVENT_TIMER);
+    CHECK(s.last_seen == SAT_1210 && !s.reminders[0].fired);
+    CHECK(clock_collect(&s, true, SAT_1210 + 90, 2000, events, CLOCK_MAX_EVENTS) == 2);
 }
 
 static void test_timer_ops(void)
@@ -214,6 +227,7 @@ int main(void)
     test_collect_alarms();
     test_collect_first_run();
     test_collect_reminders_and_timers();
+    test_collect_unsynced();
     test_timer_ops();
     test_stopwatch();
     test_formatting();

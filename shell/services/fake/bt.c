@@ -87,3 +87,8 @@ void bt_agent_reply(bool accept)
 {
     (void)accept;
 }
+
+void bt_on_pair_failed(bt_failed_cb_t cb)
+{
+    (void)cb;
+}

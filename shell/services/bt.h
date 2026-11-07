@@ -29,6 +29,7 @@ typedef enum {
 } bt_activity_t;
 
 typedef void (*bt_confirm_cb_t)(const char *device, uint32_t passkey, void *user);
+typedef void (*bt_failed_cb_t)(const char *path);
 
 const char *bt_kind_label(const char *icon);
 void bt_format_passkey(uint32_t passkey, char *out, size_t len);
@@ -48,5 +49,6 @@ void bt_forget(const char *path);
 bt_activity_t bt_activity(const char *path);
 void bt_agent_start(bt_confirm_cb_t cb, void *user);
 void bt_agent_reply(bool accept);
+void bt_on_pair_failed(bt_failed_cb_t cb);
 
 #endif

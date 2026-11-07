@@ -70,12 +70,26 @@ int prefs_get_int(const char *key, int fallback)
 
 bool prefs_set_int(const char *key, int value)
 {
-    char path[PATH_LEN], tmp[PATH_LEN + 8], text[PREFS_TEXT_MAX] = "", out[PREFS_TEXT_MAX], number[16];
+    char number[16];
+    snprintf(number, sizeof(number), "%d", value);
+    return prefs_set_text(key, number);
+}
+
+bool prefs_get_text(const char *key, char *out, size_t len)
+{
+    char path[PATH_LEN], text[PREFS_TEXT_MAX];
+    out[0] = '\0';
+    return config_path(path, sizeof(path), false) && sysinfo_read_file(path, text, sizeof(text)) &&
+           sysinfo_parse_key_value(text, key, out, len);
+}
+
+bool prefs_set_text(const char *key, const char *value)
+{
+    char path[PATH_LEN], tmp[PATH_LEN + 8], text[PREFS_TEXT_MAX] = "", out[PREFS_TEXT_MAX];
     if (!config_path(path, sizeof(path), true))
         return false;
     sysinfo_read_file(path, text, sizeof(text));
-    snprintf(number, sizeof(number), "%d", value);
-    if (!prefs_update(text, key, number, out, sizeof(out)))
+    if (!prefs_update(text, key, value, out, sizeof(out)))
         return false;
 
     snprintf(tmp, sizeof(tmp), "%s.new", path);

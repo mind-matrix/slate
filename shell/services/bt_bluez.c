@@ -146,6 +146,19 @@ bool bt_connected_name(char *out, size_t len)
     return false;
 }
 
+static bt_failed_cb_t pair_failed;
+
+void bt_on_pair_failed(bt_failed_cb_t cb)
+{
+    pair_failed = cb;
+}
+
+static void report_pair_failure(void)
+{
+    if (pair_failed)
+        pair_failed(job.path);
+}
+
 static void finish_job(bt_activity_t result)
 {
     job.slot = sd_bus_slot_unref(job.slot);
@@ -170,6 +183,7 @@ static int on_paired(sd_bus_message *reply, void *user, sd_bus_error *error)
     job.slot = sd_bus_slot_unref(job.slot);
     if (failure && !sd_bus_error_has_name(failure, ALREADY_EXISTS)) {
         job.activity = BT_FAILED;
+        report_pair_failure();
         return 0;
     }
     bus_set_bool(BLUEZ, job.path, DEVICE, "Trusted", true);
@@ -197,8 +211,11 @@ static void start_job(const char *path, bt_activity_t activity, const char *meth
     job.slot = sd_bus_slot_unref(job.slot);
     snprintf(job.path, sizeof(job.path), "%s", path);
     job.activity = activity;
-    if (call_device(path, method, handler) < 0)
+    if (call_device(path, method, handler) < 0) {
         job.activity = BT_FAILED;
+        if (activity == BT_PAIRING)
+            report_pair_failure();
+    }
 }
 
 void bt_pair(const char *path)

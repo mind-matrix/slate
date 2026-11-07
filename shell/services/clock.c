@@ -54,9 +54,19 @@ static size_t push(clock_event_t *out, size_t count, size_t max, clock_event_kin
     return count;
 }
 
-size_t clock_collect(clock_state_t *s, int64_t now, int64_t mono_ms, clock_event_t *out, size_t max)
+size_t clock_collect(clock_state_t *s, bool synced, int64_t now, int64_t mono_ms, clock_event_t *out, size_t max)
 {
     size_t count = 0;
+    for (size_t i = 0; i < s->timer_count; i++) {
+        clock_timer_t *t = &s->timers[i];
+        if (!t->deadline || t->deadline > mono_ms)
+            continue;
+        count = push(out, count, max, CLOCK_EVENT_TIMER, t->id, now);
+        t->left_ms = 0;
+        t->deadline = 0;
+    }
+    if (!synced)
+        return count;
     int64_t since = s->last_seen ? s->last_seen : now;
     for (size_t i = 0; i < s->alarm_count; i++) {
         clock_alarm_t *a = &s->alarms[i];
@@ -79,14 +89,6 @@ size_t clock_collect(clock_state_t *s, int64_t now, int64_t mono_ms, clock_event
         bool missed = now - r->when > CLOCK_MISSED_AFTER;
         count = push(out, count, max, missed ? CLOCK_EVENT_REMINDER_MISSED : CLOCK_EVENT_REMINDER, r->id, r->when);
         r->fired = true;
-    }
-    for (size_t i = 0; i < s->timer_count; i++) {
-        clock_timer_t *t = &s->timers[i];
-        if (!t->deadline || t->deadline > mono_ms)
-            continue;
-        count = push(out, count, max, CLOCK_EVENT_TIMER, t->id, now);
-        t->left_ms = 0;
-        t->deadline = 0;
     }
     s->last_seen = now;
     return count;

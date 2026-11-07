@@ -82,7 +82,7 @@ typedef struct {
 
 int clock_weekday(int64_t time);
 int64_t clock_alarm_next(const clock_alarm_t *alarm, int64_t after);
-size_t clock_collect(clock_state_t *state, int64_t now, int64_t mono_ms, clock_event_t *out, size_t max);
+size_t clock_collect(clock_state_t *state, bool synced, int64_t now, int64_t mono_ms, clock_event_t *out, size_t max);
 int64_t clock_timer_left(const clock_timer_t *timer, int64_t mono_ms);
 void clock_timer_pause(clock_timer_t *timer, int64_t mono_ms);
 void clock_timer_resume(clock_timer_t *timer, int64_t mono_ms);
