@@ -1,0 +1,17 @@
+var slateUserActionPrefixes = [
+    "org.freedesktop.NetworkManager.",
+    "org.freedesktop.login1.power-off",
+    "org.freedesktop.login1.reboot"
+];
+
+polkit.addRule(function (action, subject) {
+    if (subject.user !== "marvin") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    for (var i = 0; i < slateUserActionPrefixes.length; i++) {
+        if (action.id.indexOf(slateUserActionPrefixes[i]) === 0) {
+            return polkit.Result.YES;
+        }
+    }
+    return polkit.Result.NOT_HANDLED;
+});

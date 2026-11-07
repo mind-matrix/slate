@@ -31,6 +31,7 @@ installed() { [ -f "$ROOTFS/var/lib/dpkg/info/$1.list" ] || [ -f "$ROOTFS/var/li
 not_installed() { ! installed "$1"; }
 masked() { [ "$(readlink "$ROOTFS/etc/systemd/system/$1")" = /dev/null ]; }
 file_exists() { [ -f "$ROOTFS$1" ]; }
+in_group() { grep -qE "^$1:[^:]*:[^:]*:(.*,)?$2(,|$)" "$ROOTFS/etc/group"; }
 
 check "user marvin exists" has_user marvin
 check "hostname is slate" hostname_is slate
@@ -46,6 +47,10 @@ for timer in apt-daily.timer apt-daily-upgrade.timer e2scrub_all.timer; do
 done
 check "journald is volatile" file_exists /etc/systemd/journald.conf.d/50-slate.conf
 check "swap uses zram" file_exists /etc/rpi/swap.conf.d/50-slate.conf
+check "polkit rule for marvin" file_exists /etc/polkit-1/rules.d/50-slate.rules
+check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
+check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
+check "marvin is in bluetooth group" in_group bluetooth marvin
 case "$VARIANT" in
 	dev) check "ssh is enabled" ssh_enabled ;;
 	release) check "ssh is disabled" ssh_disabled ;;
