@@ -32,6 +32,9 @@ not_installed() { ! installed "$1"; }
 masked() { [ "$(readlink "$ROOTFS/etc/systemd/system/$1")" = /dev/null ]; }
 file_exists() { [ -f "$ROOTFS$1" ]; }
 boot_config_has() { grep -qx "$1" "$ROOTFS/boot/firmware/config.txt"; }
+unit_enabled() { compgen -G "$ROOTFS/etc/systemd/system/*.wants/$1" > /dev/null; }
+unit_disabled() { ! unit_enabled "$1"; }
+owned_by() { [ "$(stat -c %u "$ROOTFS$2")" = "$(awk -F: -v u="$1" '$1 == u { print $3 }' "$ROOTFS/etc/passwd")" ]; }
 in_group() { grep -qE "^$1:[^:]*:[^:]*:(.*,)?$2(,|$)" "$ROOTFS/etc/group"; }
 
 check "user marvin exists" has_user marvin
@@ -56,8 +59,13 @@ check "bluetooth audio works without a seat" file_exists /etc/wireplumber/wirepl
 check "camera auto-detect is off" boot_config_has camera_auto_detect=0
 check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
+check "slate-shell is installed" test -x "$ROOTFS/usr/local/bin/slate-shell"
+check "slate-shell starts at boot" unit_enabled slate-shell.service
+check "tty1 login is replaced by the shell" unit_disabled getty@tty1.service
 case "$VARIANT" in
 	dev)
+		check "marvin can redeploy the shell" owned_by marvin /usr/local/bin/slate-shell
+		check "marvin can restart the shell" file_exists /etc/polkit-1/rules.d/50-slate-shell-deploy.rules
 		check "ssh is enabled" ssh_enabled
 		check "evtest is installed" installed evtest
 		check "slate-memreport is executable" test -x "$ROOTFS/usr/local/bin/slate-memreport"
@@ -65,6 +73,7 @@ case "$VARIANT" in
 	release)
 		check "ssh is disabled" ssh_disabled
 		check "evtest is not installed" not_installed evtest
+		check "shell binary is root-owned" owned_by root /usr/local/bin/slate-shell
 		;;
 	*) usage ;;
 esac

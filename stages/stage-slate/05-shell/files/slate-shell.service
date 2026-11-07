@@ -1,0 +1,15 @@
+[Unit]
+Description=Slate Shell
+After=systemd-user-sessions.service
+Conflicts=getty@tty1.service
+
+[Service]
+User=marvin
+SupplementaryGroups=video render input
+ExecStart=/usr/local/bin/slate-shell
+Restart=always
+RestartSec=1
+OOMScoreAdjust=500
+
+[Install]
+WantedBy=multi-user.target

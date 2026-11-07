@@ -40,6 +40,11 @@ prepare_pi_gen() {
 	touch "$PI_GEN_DIR"/stage{3,4,5}/SKIP "$PI_GEN_DIR"/stage{2,4,5}/SKIP_IMAGES
 }
 
+build_shell() {
+	"$SOURCE_DIR/shell/build.sh" pi
+	install -D -m 755 "$BUILD_ROOT/shell/pi/slate-shell" "$SYNCED_DIR/stages/stage-slate/05-shell/files/slate-shell"
+}
+
 mark_export_stage() {
 	echo 'IMG_SUFFIX=""' > "$SYNCED_DIR/stages/$1/EXPORT_IMAGE"
 }
@@ -64,6 +69,7 @@ main() {
 	image_date="$(date +%Y-%m-%d)"
 
 	sync_sources
+	build_shell
 	prepare_pi_gen
 	for stage in $custom_stages; do
 		stage_paths="$stage_paths $SYNCED_DIR/stages/$stage"
