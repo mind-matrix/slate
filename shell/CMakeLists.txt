@@ -91,6 +91,7 @@ add_library(slateservices STATIC
     services/prefs.c
     services/tty.c
     services/update.c
+    services/notify.c
     ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
