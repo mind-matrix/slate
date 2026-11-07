@@ -1,7 +1,8 @@
 var slateUserActionPrefixes = [
     "org.freedesktop.NetworkManager.",
     "org.freedesktop.login1.power-off",
-    "org.freedesktop.login1.reboot"
+    "org.freedesktop.login1.reboot",
+    "org.freedesktop.timedate1.set-timezone"
 ];
 
 polkit.addRule(function (action, subject) {
