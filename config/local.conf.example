@@ -1,3 +1,4 @@
 export WPA_COUNTRY=IN
 export SLATE_WIFI_SSID="your-network"
 export SLATE_WIFI_PASSWORD="your-password"
+export PUBKEY_SSH_FIRST_USER="ssh-ed25519 AAAA... you@host"
