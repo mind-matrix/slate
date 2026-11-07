@@ -18,6 +18,7 @@
 #define SUI_COLOR_DANGER_FILL 0xD63B3B
 #define SUI_COLOR_WARNING_FILL 0xFFC65C
 #define SUI_COLOR_WHITE 0xFFFFFF
+#define SUI_COLOR_CONSOLE 0x0B1122
 
 #define SUI_COLOR_CAT_WIFI 0x7AB0FF
 #define SUI_COLOR_CAT_BLUETOOTH 0xA99BFF
@@ -59,6 +60,7 @@ typedef enum {
 
 void sui_theme_init(void);
 const lv_font_t *sui_font(sui_text_t text);
+const lv_font_t *sui_font_mono(void);
 double sui_contrast_ratio(uint32_t a, uint32_t b);
 lv_obj_t *sui_screen_create(void);
 lv_obj_t *sui_box_create(lv_obj_t *parent);

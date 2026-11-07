@@ -8,6 +8,7 @@ LV_FONT_DECLARE(slate_font_20)
 LV_FONT_DECLARE(slate_font_24)
 LV_FONT_DECLARE(slate_font_32)
 LV_FONT_DECLARE(slate_font_48)
+LV_FONT_DECLARE(slate_mono_18)
 
 static lv_style_t screen_style;
 static lv_style_t pressed_style;
@@ -87,4 +88,9 @@ lv_obj_t *sui_box_create(lv_obj_t *parent)
 const lv_style_t *sui_style_pressed(void)
 {
     return &pressed_style;
+}
+
+const lv_font_t *sui_font_mono(void)
+{
+    return &slate_mono_18;
 }
