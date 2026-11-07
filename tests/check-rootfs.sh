@@ -52,6 +52,7 @@ check "polkit rule for marvin" file_exists /etc/polkit-1/rules.d/50-slate.rules
 check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
 check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
 check "marvin is in bluetooth group" in_group bluetooth marvin
+check "bluetooth audio works without a seat" file_exists /etc/wireplumber/wireplumber.conf.d/50-slate-bluez.conf
 check "camera auto-detect is off" boot_config_has camera_auto_detect=0
 check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
