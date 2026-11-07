@@ -3,3 +3,4 @@ pipewire-alsa
 wireplumber
 libspa-0.2-bluetooth
 libopenblas0
+libvterm0

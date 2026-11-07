@@ -1,7 +1,7 @@
 #include "desktop.h"
 
 #include "about.h"
-#include "app_stub.h"
+#include "terminal.h"
 #include "components/app_icon.h"
 #include "components/wallpaper.h"
 #include "platform/platform.h"
@@ -22,7 +22,7 @@ typedef struct {
 
 static const app_t apps[] = {
     { SUI_SYMBOL(LV_SYMBOL_SETTINGS), "Settings", SUI_COLOR_CAT_WIFI, &settings_screen },
-    { SUI_VECTOR(SUI_ICON_TERMINAL), "Terminal", SUI_COLOR_CAT_TERMINAL, &app_stub_screen },
+    { SUI_VECTOR(SUI_ICON_TERMINAL), "Terminal", SUI_COLOR_CAT_TERMINAL, &terminal_screen },
     { SUI_VECTOR(SUI_ICON_INFO), "About", SUI_COLOR_CAT_SYSTEM, &about_screen },
 };
 
