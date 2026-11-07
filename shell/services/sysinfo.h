@@ -6,6 +6,8 @@
 #include <stdint.h>
 
 #define SYSINFO_TEXT 64
+#define SYSINFO_IMAGE_FILE "/etc/slate-release"
+#define SYSINFO_RELEASE_FILE "/usr/lib/slate/release"
 
 typedef struct {
     uint64_t total_kib;

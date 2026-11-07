@@ -180,10 +180,18 @@ void sysinfo_read_device(sysinfo_device_t *out)
         !sysinfo_parse_key_value(buf, "PRETTY_NAME", out->base, sizeof(out->base)))
         copy_or_dash(out->base, sizeof(out->base), NULL);
 
-    bool release = sysinfo_read_file("/etc/slate-release", buf, sizeof(buf));
-    if (!release || !sysinfo_parse_key_value(buf, "SLATE_BUILD_TYPE", out->build_type, sizeof(out->build_type)))
+    if (!sysinfo_read_file(SYSINFO_IMAGE_FILE, buf, sizeof(buf)) ||
+        !sysinfo_parse_key_value(buf, "SLATE_BUILD_TYPE", out->build_type, sizeof(out->build_type)))
         copy_or_dash(out->build_type, sizeof(out->build_type), NULL);
-    if (!release || !sysinfo_parse_key_value(buf, "SLATE_VERSION", out->version, sizeof(out->version)))
+
+    char version[24], commit[24];
+    if (sysinfo_read_file(SYSINFO_RELEASE_FILE, buf, sizeof(buf)) &&
+        sysinfo_parse_key_value(buf, "SLATE_VERSION", version, sizeof(version))) {
+        if (sysinfo_parse_key_value(buf, "SLATE_COMMIT", commit, sizeof(commit)))
+            snprintf(out->version, sizeof(out->version), "%s · %s", version, commit);
+        else
+            snprintf(out->version, sizeof(out->version), "%s", version);
+    } else
         copy_or_dash(out->version, sizeof(out->version), NULL);
 }
 
