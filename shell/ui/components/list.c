@@ -10,6 +10,8 @@
 #define ICON_RADIUS 14
 #define SECTION_PAD_LEFT 8
 #define SECTION_LETTER_SPACE 1
+#define RADIO_SIZE 28
+#define RADIO_DOT 14
 
 lv_obj_t *sui_list_create(lv_obj_t *parent, int32_t width)
 {
@@ -55,7 +57,7 @@ lv_obj_t *sui_list_row_create(lv_obj_t *list, const sui_row_t *spec)
     lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     add_divider_if_needed(row);
 
-    if (spec->trailing == SUI_TRAILING_CHEVRON) {
+    if (spec->trailing == SUI_TRAILING_CHEVRON || spec->trailing == SUI_TRAILING_RADIO) {
         lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_style_bg_color(row, lv_color_hex(SUI_COLOR_RAISED), LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
@@ -77,7 +79,7 @@ lv_obj_t *sui_list_row_create(lv_obj_t *list, const sui_row_t *spec)
     add_label(text, spec->title, SUI_TEXT_ROW, SUI_COLOR_TEXT);
 
     lv_obj_t *detail = NULL;
-    if (spec->trailing == SUI_TRAILING_VALUE)
+    if (spec->trailing == SUI_TRAILING_VALUE || spec->trailing == SUI_TRAILING_RADIO)
         detail = add_label(row, spec->detail ? spec->detail : "", SUI_TEXT_BODY, SUI_COLOR_TEXT_MUTED);
     else if (spec->detail)
         detail = add_label(text, spec->detail, SUI_TEXT_CAPTION, SUI_COLOR_TEXT_MUTED);
@@ -85,7 +87,30 @@ lv_obj_t *sui_list_row_create(lv_obj_t *list, const sui_row_t *spec)
 
     if (spec->trailing == SUI_TRAILING_CHEVRON)
         add_label(row, LV_SYMBOL_RIGHT, SUI_TEXT_ROW, SUI_COLOR_TEXT_MUTED);
+    if (spec->trailing == SUI_TRAILING_RADIO) {
+        lv_obj_t *ring = sui_box_create(row);
+        lv_obj_set_size(ring, RADIO_SIZE, RADIO_SIZE);
+        lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_border_width(ring, 2, 0);
+        lv_obj_t *dot = sui_box_create(ring);
+        lv_obj_set_size(dot, RADIO_DOT, RADIO_DOT);
+        lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+        lv_obj_set_style_bg_color(dot, lv_color_hex(SUI_COLOR_ACCENT), 0);
+        lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+        lv_obj_center(dot);
+        sui_list_row_set_checked(row, false);
+    }
     return row;
+}
+
+void sui_list_row_set_checked(lv_obj_t *row, bool checked)
+{
+    lv_obj_t *ring = lv_obj_get_child(row, -1);
+    lv_obj_set_style_border_color(ring, lv_color_hex(checked ? SUI_COLOR_ACCENT : SUI_COLOR_TRACK), 0);
+    if (checked)
+        lv_obj_remove_flag(lv_obj_get_child(ring, 0), LV_OBJ_FLAG_HIDDEN);
+    else
+        lv_obj_add_flag(lv_obj_get_child(ring, 0), LV_OBJ_FLAG_HIDDEN);
 }
 
 void sui_list_row_set_detail(lv_obj_t *row, const char *text)
