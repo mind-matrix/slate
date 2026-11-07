@@ -61,6 +61,7 @@ check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
 check "slate-shell is installed" test -x "$ROOTFS/usr/local/bin/slate-shell"
 check "slate-shell starts at boot" unit_enabled slate-shell.service
+check "build type is recorded" grep -qx "SLATE_BUILD_TYPE=$VARIANT" "$ROOTFS/etc/slate-release"
 check "tty1 login is replaced by the shell" unit_disabled getty@tty1.service
 case "$VARIANT" in
 	dev)

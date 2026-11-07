@@ -56,6 +56,8 @@ write_pi_gen_config() {
 		if [ -f "$SYNCED_DIR/config/local.conf" ]; then
 			cat "$SYNCED_DIR/config/local.conf"
 		fi
+		echo "export SLATE_BUILD_TYPE=$variant"
+		echo "export SLATE_VERSION=\"$image_date · $(git -c safe.directory='*' -C "$SOURCE_DIR" describe --always --dirty)\""
 		echo "export IMG_NAME=slate-$variant"
 		echo "export IMG_DATE=$image_date"
 		echo "export STAGE_LIST=\"stage0 stage1 stage2 $stage_paths\""
