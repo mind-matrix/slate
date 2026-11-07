@@ -1,0 +1,239 @@
+#!/bin/bash
+set -uo pipefail
+
+STATE_DIR="${SLATE_UPDATE_STATE:-/var/lib/slate-update}"
+FEED_URL="${SLATE_UPDATE_FEED:-https://github.com/mind-matrix/slate/releases/latest/download}"
+PUBLIC_KEY="${SLATE_UPDATE_KEY:-/usr/share/slate/update.pub}"
+RELEASE_FILE="${SLATE_RELEASE_FILE:-/usr/lib/slate/release}"
+IMAGE_FILE="${SLATE_IMAGE_FILE:-/etc/slate-release}"
+APT="${SLATE_UPDATE_APT:-apt-get}"
+DPKG="${SLATE_UPDATE_DPKG:-dpkg}"
+PROTOCOLS="${SLATE_UPDATE_PROTOCOLS:-=https}"
+FREE_KB="${SLATE_UPDATE_FREE_KB:-}"
+
+STAGING="$STATE_DIR/staging"
+STATUS="$STATE_DIR/status"
+MANIFEST="$STATE_DIR/manifest.json"
+SIGNATURE="$STATE_DIR/manifest.json.minisig"
+NOTES="$STATE_DIR/notes"
+CHECKED="$STATE_DIR/checked"
+INSTALLED_DEB="$STATE_DIR/installed.deb"
+PREVIOUS_DEB="$STATE_DIR/previous.deb"
+SPARE_KB=51200
+
+VERSION_PATTERN='^[0-9]+(\.[0-9]+)*$'
+FILE_PATTERN='^[A-Za-z0-9._+-]+\.deb$'
+HASH_PATTERN='^[0-9a-f]{64}$'
+PACKAGE_PATTERN='^[a-z0-9][a-z0-9+.-]*$'
+
+value_of() {
+	sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/\1/p" "$2" 2>/dev/null | head -n 1
+}
+
+installed_version() {
+	value_of SLATE_VERSION "$RELEASE_FILE"
+}
+
+installed_channel() {
+	value_of SLATE_CHANNEL "$RELEASE_FILE"
+}
+
+write_status() {
+	local tmp="$STATUS.new"
+	printf '%s\n' "$@" "checked=$(cat "$CHECKED" 2>/dev/null || echo 0)" > "$tmp"
+	chmod 644 "$tmp"
+	mv -f "$tmp" "$STATUS"
+}
+
+fail() {
+	write_status state=error "reason=$1"
+	rm -rf "$STAGING"
+	exit 1
+}
+
+fetch() {
+	curl -fsSL --proto "$PROTOCOLS" --proto-redir "$PROTOCOLS" --retry 2 --connect-timeout 20 -o "$2" "$1"
+}
+
+verify_manifest() {
+	minisign -Vq -p "$PUBLIC_KEY" -m "$1/manifest.json" -x "$1/manifest.json.minisig" >/dev/null 2>&1
+}
+
+field() {
+	jq -er "$1" "$2" 2>/dev/null
+}
+
+matches() {
+	[[ "$1" =~ $2 ]]
+}
+
+read_manifest() {
+	local file="$1"
+	M_VERSION="$(field .version "$file")" || return 1
+	M_CHANNEL="$(field .channel "$file")" || return 1
+	M_MIN="$(field .min_version "$file")" || return 1
+	M_FILE="$(field .package.file "$file")" || return 1
+	M_URL="$(field .package.url "$file")" || return 1
+	M_SHA="$(field .package.sha256 "$file")" || return 1
+	M_SIZE="$(field .package.size "$file")" || return 1
+	M_REMOVE="$(jq -r '.remove // [] | .[]' "$file" 2>/dev/null)" || return 1
+	matches "$M_VERSION" "$VERSION_PATTERN" && matches "$M_MIN" "$VERSION_PATTERN" &&
+		matches "$M_FILE" "$FILE_PATTERN" && matches "$M_SHA" "$HASH_PATTERN" &&
+		matches "$M_SIZE" '^[0-9]+$' || return 1
+	local package
+	for package in $M_REMOVE; do
+		matches "$package" "$PACKAGE_PATTERN" && [ "$package" != slate ] || return 1
+	done
+}
+
+is_newer() {
+	"$DPKG" --compare-versions "$1" gt "$2"
+}
+
+prepare() {
+	umask 022
+	mkdir -p "$STATE_DIR"
+	exec 9> "$STATE_DIR/lock"
+	flock -n 9 || exit 0
+}
+
+check() {
+	prepare
+	if [ "$(value_of SLATE_BUILD_TYPE "$IMAGE_FILE")" = dev ]; then
+		write_status state=disabled
+		return 0
+	fi
+	if [ "$(value_of state "$STATUS")" = restart ]; then
+		return 0
+	fi
+
+	write_status state=checking
+	rm -rf "$STAGING"
+	mkdir -p "$STAGING"
+	fetch "$FEED_URL/manifest.json" "$STAGING/manifest.json" &&
+		fetch "$FEED_URL/manifest.json.minisig" "$STAGING/manifest.json.minisig" || fail offline
+	verify_manifest "$STAGING" || fail unverified
+	read_manifest "$STAGING/manifest.json" || fail unverified
+	date +%s > "$CHECKED"
+
+	local installed
+	installed="$(installed_version)"
+	if [ "$M_CHANNEL" != "$(installed_channel)" ] || ! is_newer "$M_VERSION" "$installed"; then
+		rm -f "$MANIFEST" "$SIGNATURE" "$NOTES"
+		rm -rf "$STAGING"
+		write_status state=current "version=$installed"
+		return 0
+	fi
+	"$DPKG" --compare-versions "$installed" ge "$M_MIN" || fail too_old
+
+	mv -f "$STAGING/manifest.json" "$MANIFEST"
+	mv -f "$STAGING/manifest.json.minisig" "$SIGNATURE"
+	jq -r '.notes // [] | .[]' "$MANIFEST" > "$NOTES"
+	chmod 644 "$NOTES"
+	rm -rf "$STAGING"
+	write_status state=available "version=$M_VERSION" "size=$M_SIZE"
+}
+
+free_kb() {
+	if [ -n "$FREE_KB" ]; then
+		echo "$FREE_KB"
+	else
+		df -Pk "$STATE_DIR" | awk 'NR == 2 { print $4 }'
+	fi
+}
+
+cancel_download() {
+	[ -n "${CURL_PID:-}" ] && kill "$CURL_PID" 2>/dev/null
+	rm -rf "$STAGING"
+	write_status state=available "version=$M_VERSION" "size=$M_SIZE"
+	exit 0
+}
+
+download() {
+	local deb="$1" size progress
+	trap cancel_download TERM INT
+	fetch "$M_URL" "$deb" &
+	CURL_PID=$!
+	while kill -0 "$CURL_PID" 2>/dev/null; do
+		size="$(stat -c %s "$deb" 2>/dev/null || echo 0)"
+		progress=$((M_SIZE > 0 ? size * 100 / M_SIZE : 0))
+		write_status state=downloading "version=$M_VERSION" "size=$M_SIZE" "progress=$progress"
+		sleep 1
+	done
+	wait "$CURL_PID"
+	local result=$?
+	CURL_PID=""
+	trap - TERM INT
+	return "$result"
+}
+
+install_update() {
+	prepare
+	[ -f "$MANIFEST" ] && [ -f "$SIGNATURE" ] || fail unverified
+	verify_manifest "$STATE_DIR" || fail unverified
+	read_manifest "$MANIFEST" || fail unverified
+	if ! is_newer "$M_VERSION" "$(installed_version)"; then
+		write_status state=current "version=$(installed_version)"
+		return 0
+	fi
+	[ "$(free_kb)" -ge $((M_SIZE * 3 / 1024 + SPARE_KB)) ] || fail space
+
+	rm -rf "$STAGING"
+	mkdir -p "$STAGING"
+	local deb="$STAGING/$M_FILE"
+	write_status state=downloading "version=$M_VERSION" "size=$M_SIZE" progress=0
+	download "$deb" || fail offline
+	[ "$(stat -c %s "$deb")" = "$M_SIZE" ] && echo "$M_SHA  $deb" | sha256sum -c --quiet - >/dev/null 2>&1 ||
+		fail unverified
+
+	write_status state=installing "version=$M_VERSION" "size=$M_SIZE" progress=100
+	DEBIAN_FRONTEND=noninteractive "$APT" install -y --no-install-recommends "$deb" > "$STATE_DIR/install.log" 2>&1 ||
+		fail failed
+	local package
+	for package in $M_REMOVE; do
+		if "$DPKG" -s "$package" >/dev/null 2>&1; then
+			DEBIAN_FRONTEND=noninteractive "$APT" purge -y "$package" >> "$STATE_DIR/install.log" 2>&1
+		fi
+	done
+	"$APT" clean >/dev/null 2>&1
+
+	[ -f "$INSTALLED_DEB" ] && mv -f "$INSTALLED_DEB" "$PREVIOUS_DEB"
+	mv -f "$deb" "$INSTALLED_DEB"
+	rm -rf "$STAGING"
+	rm -f "$MANIFEST" "$SIGNATURE"
+	write_status state=restart "version=$M_VERSION"
+}
+
+recover() {
+	prepare
+	local state version installed
+	state="$(value_of state "$STATUS")"
+	version="$(value_of version "$STATUS")"
+	installed="$(installed_version)"
+	case "$state" in
+		checking | downloading | installing)
+			"$DPKG" --configure -a >/dev/null 2>&1
+			rm -rf "$STAGING"
+			if [ "$state" = installing ] && [ -n "$version" ] && [ "$version" = "$(installed_version)" ]; then
+				write_status state=current "version=$version"
+			else
+				write_status state=error reason=interrupted
+			fi
+			;;
+		restart)
+			if [ "$version" = "$installed" ]; then
+				write_status state=current "version=$installed"
+			fi
+			;;
+	esac
+}
+
+case "${1:-}" in
+	check) check ;;
+	install) install_update ;;
+	recover) recover ;;
+	*)
+		echo "usage: $0 check|install|recover" >&2
+		exit 2
+		;;
+esac

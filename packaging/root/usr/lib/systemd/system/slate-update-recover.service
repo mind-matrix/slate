@@ -1,0 +1,12 @@
+[Unit]
+Description=Recover from an interrupted Slate update
+Before=slate-shell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/slate/slate-update recover
+StateDirectory=slate-update
+StateDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

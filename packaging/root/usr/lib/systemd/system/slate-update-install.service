@@ -1,0 +1,12 @@
+[Unit]
+Description=Install a Slate update
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/slate/slate-update install
+StateDirectory=slate-update
+StateDirectoryMode=0755
+Nice=10
+TimeoutStopSec=30
