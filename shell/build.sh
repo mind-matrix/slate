@@ -5,7 +5,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${SLATE_BUILD_ROOT:-${HOME}/slate-build}/shell"
 SYNCED_DIR="${WORK_DIR}/src"
 BUILD_IMAGE="slate-shell-build"
-SCREENS=(desktop drawer settings wifi wifi_join bluetooth display sound power terminal about diagnostics datetime timezone_picker)
+SCREENS=(desktop drawer settings wifi wifi_join bluetooth display sound power terminal about diagnostics datetime timezone_picker software_update)
 
 usage() {
 	echo "usage: $0 sim|run|snapshot|pi" >&2

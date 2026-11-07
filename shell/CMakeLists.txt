@@ -32,7 +32,8 @@ if(SLATE_BACKEND STREQUAL "sdl")
         services/fake/bt.c
         services/fake/audio.c
         services/fake/backlight.c
-        services/fake/power.c)
+        services/fake/power.c
+        services/fake/update.c)
 elseif(SLATE_BACKEND STREQUAL "drm")
     pkg_check_modules(DRM REQUIRED IMPORTED_TARGET libdrm)
     set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c ui/platform/keyboard.c)
@@ -41,7 +42,8 @@ elseif(SLATE_BACKEND STREQUAL "drm")
         services/bt_bluez.c
         services/audio_wpctl.c
         services/backlight_sysfs.c
-        services/power_logind.c)
+        services/power_logind.c
+        services/update_systemd.c)
     set(SLATE_BACKEND_LIBS PkgConfig::DRM)
 else()
     message(FATAL_ERROR "SLATE_BACKEND must be sdl or drm")
@@ -88,6 +90,7 @@ add_library(slateservices STATIC
     services/backlight.c
     services/prefs.c
     services/tty.c
+    services/update.c
     ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
@@ -111,7 +114,8 @@ add_library(slatescreens STATIC
     screens/idle.c
     screens/sound.c
     screens/power_screen.c
-    screens/terminal.c)
+    screens/terminal.c
+    screens/software_update.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)

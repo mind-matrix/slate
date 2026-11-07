@@ -13,6 +13,7 @@
 #include "power_screen.h"
 #include "quick_drawer.h"
 #include "settings.h"
+#include "software_update.h"
 #include "sound.h"
 #include "terminal.h"
 #include "theme/theme.h"
@@ -25,7 +26,7 @@
 static const sui_screen_def_t *const screens[] = {
     &desktop_screen,  &settings_screen, &about_screen, &diagnostics_screen, &datetime_screen,
     &timezone_picker_screen, &wifi_screen, &bluetooth_screen, &display_screen, &sound_screen,
-    &power_screen, &terminal_screen,
+    &power_screen, &terminal_screen, &software_update_screen,
 };
 
 static const sui_screen_def_t *find_screen(const char *name)

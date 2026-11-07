@@ -4,6 +4,7 @@
 #include "components/header.h"
 #include "components/list.h"
 #include "diagnostics.h"
+#include "software_update.h"
 #include "sysinfo.h"
 #include "theme/theme.h"
 
@@ -32,6 +33,14 @@ static void open_diagnostics(lv_event_t *e)
     sui_nav_push(&diagnostics_screen, NULL);
 }
 
+static lv_obj_t *update_row;
+
+static void open_update(lv_event_t *e)
+{
+    (void)e;
+    sui_nav_push(&software_update_screen, NULL);
+}
+
 static void create(lv_obj_t *screen, void *args)
 {
     (void)args;
@@ -56,6 +65,10 @@ static void create(lv_obj_t *screen, void *args)
 
     lv_obj_t *diagnostics_list = sui_list_create(software, LV_PCT(100));
     lv_obj_set_style_margin_top(diagnostics_list, SUI_SPACE_S, 0);
+    sui_row_t update = { SUI_SYMBOL(LV_SYMBOL_DOWNLOAD), SUI_COLOR_CAT_SYSTEM, "Software update", "",
+                         SUI_TRAILING_CHEVRON };
+    update_row = sui_list_row_create(diagnostics_list, &update);
+    lv_obj_add_event_cb(update_row, open_update, LV_EVENT_CLICKED, NULL);
     sui_row_t diagnostics = { SUI_VECTOR(SUI_ICON_PULSE), SUI_COLOR_CAT_SYSTEM, "System diagnostics",
                               "CPU, memory, network, storage", SUI_TRAILING_CHEVRON };
     lv_obj_t *row = sui_list_row_create(diagnostics_list, &diagnostics);
@@ -70,7 +83,18 @@ static void create(lv_obj_t *screen, void *args)
     add_value(device_list, "Bluetooth name", device.hostname);
 }
 
+static void on_show(lv_obj_t *screen)
+{
+    (void)screen;
+    char text[SOFTWARE_UPDATE_SUMMARY];
+    uint32_t color;
+    software_update_summary(text, sizeof(text), &color);
+    sui_list_row_set_detail(update_row, text);
+    sui_list_row_set_detail_color(update_row, color);
+}
+
 const sui_screen_def_t about_screen = {
     .name = "about",
     .create = create,
+    .on_show = on_show,
 };

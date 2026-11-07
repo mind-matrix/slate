@@ -7,6 +7,7 @@
 #include "net.h"
 #include "platform/platform.h"
 #include "quick_drawer.h"
+#include "software_update.h"
 #include "theme/theme.h"
 
 #define BUS_POLL_MS 200
@@ -48,6 +49,7 @@ int main(void)
 
     bluetooth_agent_init();
     idle_start();
+    software_update_start_auto_check();
     sui_run();
     return 0;
 }
