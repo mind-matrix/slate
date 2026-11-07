@@ -56,8 +56,15 @@ check "camera auto-detect is off" boot_config_has camera_auto_detect=0
 check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
 case "$VARIANT" in
-	dev) check "ssh is enabled" ssh_enabled ;;
-	release) check "ssh is disabled" ssh_disabled ;;
+	dev)
+		check "ssh is enabled" ssh_enabled
+		check "evtest is installed" installed evtest
+		check "slate-memreport is executable" test -x "$ROOTFS/usr/local/bin/slate-memreport"
+		;;
+	release)
+		check "ssh is disabled" ssh_disabled
+		check "evtest is not installed" not_installed evtest
+		;;
 	*) usage ;;
 esac
 

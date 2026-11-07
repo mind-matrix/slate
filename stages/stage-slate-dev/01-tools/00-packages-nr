@@ -1,0 +1,8 @@
+gdb
+strace
+htop
+evtest
+build-essential
+cmake
+libopenblas-dev
+python3-dev
