@@ -127,3 +127,10 @@ lv_obj_t *sui_section_label_create(lv_obj_t *parent, const char *text)
     lv_obj_set_style_text_letter_space(label, SECTION_LETTER_SPACE, 0);
     return label;
 }
+
+void sui_list_row_set_detail_color(lv_obj_t *row, uint32_t color)
+{
+    lv_obj_t *detail = lv_obj_get_user_data(row);
+    if (detail)
+        lv_obj_set_style_text_color(detail, lv_color_hex(color), 0);
+}

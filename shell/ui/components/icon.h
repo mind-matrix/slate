@@ -11,6 +11,9 @@ typedef enum {
     SUI_ICON_TERMINAL,
     SUI_ICON_PULSE,
     SUI_ICON_MONITOR,
+    SUI_ICON_SUN,
+    SUI_ICON_LOCK,
+    SUI_ICON_MIC,
 } sui_icon_t;
 
 typedef struct {
