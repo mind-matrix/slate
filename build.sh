@@ -45,6 +45,13 @@ build_shell() {
 	install -D -m 755 "$BUILD_ROOT/shell/pi/slate-shell" "$SYNCED_DIR/stages/stage-slate/05-shell/files/slate-shell"
 }
 
+copy_to_windows() {
+	local source target
+	source="$(wslpath -w "$1")"
+	target="$(wslpath -w "$2")"
+	powershell.exe -NoProfile -Command "Copy-Item -LiteralPath '$source' -Destination '$target' -Force"
+}
+
 mark_export_stage() {
 	echo 'IMG_SUFFIX=""' > "$SYNCED_DIR/stages/$1/EXPORT_IMAGE"
 }
@@ -82,7 +89,7 @@ main() {
 	(cd "$PI_GEN_DIR" && sudo ./build.sh)
 
 	local image="$PI_GEN_DIR/deploy/$image_date-slate-$variant.img"
-	cp "$image" "$OUTPUT_DIR/"
+	copy_to_windows "$image" "$OUTPUT_DIR/"
 	echo "Image ready: $OUTPUT_DIR/$(basename "$image")"
 }
 
