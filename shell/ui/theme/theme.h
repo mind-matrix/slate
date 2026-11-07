@@ -43,6 +43,8 @@
 #define SUI_TOUCH_MIN 48
 #define SUI_TOUCH 56
 #define SUI_ROW_H 72
+#define SUI_ROW_TALL_H 88
+#define SUI_CONTENT_W 880
 #define SUI_STATUS_BAR_H 48
 #define SUI_HEADER_H 80
 

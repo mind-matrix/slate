@@ -5,7 +5,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${SLATE_BUILD_ROOT:-${HOME}/slate-build}/shell"
 SYNCED_DIR="${WORK_DIR}/src"
 BUILD_IMAGE="slate-shell-build"
-SCREENS=("" "Settings")
+SCREENS=(desktop settings about diagnostics)
 
 usage() {
 	echo "usage: $0 sim|run|snapshot|pi" >&2
@@ -27,10 +27,9 @@ take_snapshots() {
 	local out="${WORK_DIR}/snapshots"
 	mkdir -p "${out}"
 	for screen in "${SCREENS[@]}"; do
-		local name="${screen:-desktop}"
-		"${WORK_DIR}/sim/slate-snapshot" "${out}/${name}.rgb565" ${screen:+"${screen}"}
-		python3 "${SYNCED_DIR}/tools/rgb565_to_png.py" "${out}/${name}.rgb565" "${out}/${name}.png"
-		echo "${out}/${name}.png"
+		"${WORK_DIR}/sim/slate-snapshot" "${out}/${screen}.rgb565" "${screen}"
+		python3 "${SYNCED_DIR}/tools/rgb565_to_png.py" "${out}/${screen}.rgb565" "${out}/${screen}.png"
+		echo "${out}/${screen}.png"
 	done
 }
 

@@ -40,20 +40,37 @@ add_library(slateui STATIC
     ui/platform/headless.c
     ${SLATE_BACKEND_SOURCES}
     ui/theme/theme.c
+    ui/theme/fonts/slate_font_14.c
+    ui/theme/fonts/slate_font_16.c
+    ui/theme/fonts/slate_font_20.c
+    ui/theme/fonts/slate_font_24.c
+    ui/theme/fonts/slate_font_32.c
+    ui/theme/fonts/slate_font_48.c
     ui/nav/nav.c
     ui/components/status_bar.c
     ui/components/app_icon.c
     ui/components/header.c
+    ui/components/icon.c
+    ui/components/list.c
+    ui/components/stat_card.c
     ui/components/wallpaper.c)
 target_include_directories(slateui PUBLIC ui)
 target_link_libraries(slateui PUBLIC lvgl m ${SLATE_BACKEND_LIBS})
 target_compile_options(slateui PRIVATE -Wall -Wextra)
 
+add_library(slateservices STATIC
+    services/sysinfo.c)
+target_include_directories(slateservices PUBLIC services)
+target_compile_options(slateservices PRIVATE -Wall -Wextra)
+
 add_library(slatescreens STATIC
     screens/desktop.c
-    screens/app_stub.c)
+    screens/app_stub.c
+    screens/settings.c
+    screens/about.c
+    screens/diagnostics.c)
 target_include_directories(slatescreens PUBLIC screens)
-target_link_libraries(slatescreens PUBLIC slateui)
+target_link_libraries(slatescreens PUBLIC slateui slateservices)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)
 
 add_executable(slate-shell main.c)

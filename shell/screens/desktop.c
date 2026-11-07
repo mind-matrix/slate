@@ -1,9 +1,11 @@
 #include "desktop.h"
 
+#include "about.h"
 #include "app_stub.h"
 #include "components/app_icon.h"
 #include "components/wallpaper.h"
 #include "platform/platform.h"
+#include "settings.h"
 #include "theme/theme.h"
 
 #define GRID_PAD_HOR 64
@@ -12,21 +14,22 @@
 #define GRID_GAP_ROW 32
 
 typedef struct {
-    const char *glyph;
+    sui_glyph_t glyph;
     const char *label;
     uint32_t color;
+    const sui_screen_def_t *screen;
 } app_t;
 
 static const app_t apps[] = {
-    { LV_SYMBOL_SETTINGS, "Settings", SUI_COLOR_CAT_WIFI },
-    { ">_", "Terminal", SUI_COLOR_CAT_TERMINAL },
-    { "i", "About", SUI_COLOR_CAT_SYSTEM },
+    { SUI_SYMBOL(LV_SYMBOL_SETTINGS), "Settings", SUI_COLOR_CAT_WIFI, &settings_screen },
+    { SUI_VECTOR(SUI_ICON_TERMINAL), "Terminal", SUI_COLOR_CAT_TERMINAL, &app_stub_screen },
+    { SUI_VECTOR(SUI_ICON_INFO), "About", SUI_COLOR_CAT_SYSTEM, &about_screen },
 };
 
 static void open_app(lv_event_t *e)
 {
     const app_t *app = lv_event_get_user_data(e);
-    sui_nav_push(&app_stub_screen, (void *)app->label);
+    sui_nav_push(app->screen, (void *)app->label);
 }
 
 static void create(lv_obj_t *screen, void *args)
