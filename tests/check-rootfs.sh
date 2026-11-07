@@ -40,7 +40,7 @@ in_group() { grep -qE "^$1:[^:]*:[^:]*:(.*,)?$2(,|$)" "$ROOTFS/etc/group"; }
 check "user marvin exists" has_user marvin
 check "hostname is slate" hostname_is slate
 check "cloud-init is not installed" cloud_init_absent
-for package in pipewire wireplumber libspa-0.2-bluetooth; do
+for package in pipewire wireplumber libspa-0.2-bluetooth libvterm0; do
 	check "$package is installed" installed "$package"
 done
 for package in cloud-init udisks2 cron man-db avahi-daemon; do
@@ -61,6 +61,7 @@ check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
 check "slate-shell is installed" test -x "$ROOTFS/usr/local/bin/slate-shell"
 check "slate-shell starts at boot" unit_enabled slate-shell.service
+check "slate-shell can reach the audio session" grep -qx "Environment=XDG_RUNTIME_DIR=/run/user/1000" "$ROOTFS/etc/systemd/system/slate-shell.service"
 check "build type is recorded" grep -qx "SLATE_BUILD_TYPE=$VARIANT" "$ROOTFS/etc/slate-release"
 check "tty1 login is replaced by the shell" unit_disabled getty@tty1.service
 case "$VARIANT" in

@@ -27,9 +27,21 @@ if(SLATE_BACKEND STREQUAL "sdl")
     target_compile_definitions(lvgl PUBLIC LV_USE_SDL=1)
     target_link_libraries(lvgl PUBLIC PkgConfig::SDL2)
     set(SLATE_BACKEND_SOURCES ui/platform/sdl.c)
+    set(SLATE_SYSTEM_SOURCES
+        services/fake/net.c
+        services/fake/bt.c
+        services/fake/audio.c
+        services/fake/backlight.c
+        services/fake/power.c)
 elseif(SLATE_BACKEND STREQUAL "drm")
     pkg_check_modules(DRM REQUIRED IMPORTED_TARGET libdrm)
-    set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c)
+    set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c ui/platform/keyboard.c)
+    set(SLATE_SYSTEM_SOURCES
+        services/net_nm.c
+        services/bt_bluez.c
+        services/audio_wpctl.c
+        services/backlight_sysfs.c
+        services/power_logind.c)
     set(SLATE_BACKEND_LIBS PkgConfig::DRM)
 else()
     message(FATAL_ERROR "SLATE_BACKEND must be sdl or drm")
@@ -46,13 +58,21 @@ add_library(slateui STATIC
     ui/theme/fonts/slate_font_24.c
     ui/theme/fonts/slate_font_32.c
     ui/theme/fonts/slate_font_48.c
+    ui/theme/fonts/slate_mono_18.c
     ui/nav/nav.c
     ui/components/status_bar.c
     ui/components/app_icon.c
+    ui/components/button.c
+    ui/components/dialog.c
     ui/components/header.c
     ui/components/icon.c
+    ui/components/keyboard.c
     ui/components/list.c
+    ui/components/quick_tile.c
+    ui/components/segmented.c
+    ui/components/slider_row.c
     ui/components/stat_card.c
+    ui/components/switch.c
     ui/components/wallpaper.c)
 target_include_directories(slateui PUBLIC ui)
 target_link_libraries(slateui PUBLIC lvgl m ${SLATE_BACKEND_LIBS})
@@ -60,22 +80,40 @@ target_compile_options(slateui PRIVATE -Wall -Wextra)
 
 add_library(slateservices STATIC
     services/sysinfo.c
-    services/timezone.c)
+    services/timezone.c
+    services/bus.c
+    services/net.c
+    services/bt.c
+    services/audio.c
+    services/backlight.c
+    services/prefs.c
+    services/tty.c
+    ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
+pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
 target_link_libraries(slateservices PUBLIC PkgConfig::SYSTEMD)
 target_compile_options(slateservices PRIVATE -Wall -Wextra)
 
 add_library(slatescreens STATIC
     screens/desktop.c
-    screens/app_stub.c
     screens/settings.c
+    screens/settings_ui.c
     screens/about.c
     screens/diagnostics.c
     screens/datetime.c
-    screens/timezone_picker.c)
+    screens/timezone_picker.c
+    screens/quick_drawer.c
+    screens/wifi.c
+    screens/wifi_join.c
+    screens/bluetooth.c
+    screens/display_settings.c
+    screens/idle.c
+    screens/sound.c
+    screens/power_screen.c
+    screens/terminal.c)
 target_include_directories(slatescreens PUBLIC screens)
-target_link_libraries(slatescreens PUBLIC slateui slateservices)
+target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)
 
 add_executable(slate-shell main.c)
