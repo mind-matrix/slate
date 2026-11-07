@@ -1,0 +1,45 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the tag matches VERSION
+        run: test "$GITHUB_REF_NAME" = "v$(cat VERSION)"
+
+      - name: Check release notes exist
+        run: test -f "releases/$(cat VERSION).md"
+
+      - name: Build and test the shell
+        run: |
+          docker build -t slate-shell-build shell
+          docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work slate-shell-build \
+            sh -c "cmake -S shell -B build -DSLATE_BACKEND=drm > /dev/null && cmake --build build -j4 && ctest --test-dir build --output-on-failure"
+
+      - name: Test the updater
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q minisign jq
+          tests/test-slate-update.sh
+
+      - name: Build the package and manifest
+        run: |
+          package="$(packaging/build-deb.sh build/slate-shell dist)"
+          packaging/make-manifest.sh "$package" "https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME" > dist/manifest.json
+
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" --draft --title "Slate $(cat VERSION)" \
+            --notes-file "releases/$(cat VERSION).md" dist/*.deb dist/manifest.json
