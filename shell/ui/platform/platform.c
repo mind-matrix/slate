@@ -3,7 +3,7 @@
 #include <poll.h>
 #include <time.h>
 
-#define MAX_WATCHES 8
+#define MAX_WATCHES 24
 #define MAX_WAIT_MS 100
 
 typedef struct {
@@ -15,6 +15,8 @@ static struct pollfd fds[MAX_WATCHES];
 static watch_t watches[MAX_WATCHES];
 static int watch_count;
 static bool running;
+static sui_key_cb_t key_cb;
+static void *key_user;
 
 static uint32_t tick_ms(void)
 {
@@ -51,19 +53,55 @@ bool sui_watch_fd(int fd, sui_fd_cb_t cb, void *user)
     return true;
 }
 
+void sui_unwatch_fd(int fd)
+{
+    for (int i = 0; i < watch_count; i++) {
+        if (fds[i].fd != fd)
+            continue;
+        watch_count--;
+        fds[i] = fds[watch_count];
+        watches[i] = watches[watch_count];
+        return;
+    }
+}
+
+void sui_set_key_handler(sui_key_cb_t cb, void *user)
+{
+    key_cb = cb;
+    key_user = user;
+}
+
+void sui_key_dispatch(uint32_t key, uint32_t mods)
+{
+    lv_display_trigger_activity(NULL);
+    if (key_cb)
+        key_cb(key, mods, key_user);
+}
+
+static void step(void)
+{
+    uint32_t wait = lv_timer_handler();
+    if (wait == LV_NO_TIMER_READY || wait > MAX_WAIT_MS)
+        wait = MAX_WAIT_MS;
+    if (poll(fds, (nfds_t)watch_count, (int)wait) <= 0)
+        return;
+    for (int i = 0; i < watch_count; i++)
+        if (fds[i].revents)
+            watches[i].cb(fds[i].fd, watches[i].user);
+}
+
 void sui_run(void)
 {
     running = true;
-    while (running) {
-        uint32_t wait = lv_timer_handler();
-        if (wait == LV_NO_TIMER_READY || wait > MAX_WAIT_MS)
-            wait = MAX_WAIT_MS;
-        if (poll(fds, (nfds_t)watch_count, (int)wait) <= 0)
-            continue;
-        for (int i = 0; i < watch_count; i++)
-            if (fds[i].revents)
-                watches[i].cb(fds[i].fd, watches[i].user);
-    }
+    while (running)
+        step();
+}
+
+void sui_run_for(uint32_t ms)
+{
+    uint32_t start = tick_ms();
+    while (tick_ms() - start < ms)
+        step();
 }
 
 void sui_quit(void)

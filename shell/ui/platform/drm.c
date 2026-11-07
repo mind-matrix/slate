@@ -172,5 +172,6 @@ lv_display_t *sui_backend_open(void)
 
     if (!sui_touch_open(disp))
         fprintf(stderr, "slate: no touchscreen found\n");
+    sui_keyboard_open();
     return disp;
 }
