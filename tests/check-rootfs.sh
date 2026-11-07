@@ -56,6 +56,10 @@ check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
 check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
 check "marvin is in bluetooth group" in_group bluetooth marvin
 check "bluetooth audio works without a seat" file_exists /usr/share/wireplumber/wireplumber.conf.d/50-slate-bluez.conf
+check "alert sounds use audio roles" file_exists /usr/share/wireplumber/wireplumber.conf.d/60-slate-roles.conf
+check "alarm sound is installed" file_exists /usr/share/slate/sounds/alarm.wav
+check "timer sound is installed" file_exists /usr/share/slate/sounds/timer.wav
+check "reminder chime is installed" file_exists /usr/share/slate/sounds/chime.wav
 check "camera auto-detect is off" boot_config_has camera_auto_detect=0
 check "display auto-detect is on" boot_config_has display_auto_detect=1
 check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
