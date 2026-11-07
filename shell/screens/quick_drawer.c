@@ -22,15 +22,15 @@
 
 #define PANEL_RADIUS 28
 #define PANEL_PAD_TOP 20
-#define PANEL_PAD_BOTTOM 16
+#define PANEL_PAD_BOTTOM 0
 #define PANEL_GAP 20
 #define CONTROLS_W 720
 #define CONTROL_GAP 12
 #define SLIDER_ROW_H 72
 #define ACTION_SIZE 56
 #define ACTION_GLYPH 24
-#define HANDLE_W 120
-#define HANDLE_H 24
+#define HANDLE_H 48
+#define CLOSE_DRAG 40
 #define HANDLE_BAR_W 48
 #define HANDLE_BAR_H 5
 #define SCRIM_COLOR 0x080C18
@@ -339,12 +339,30 @@ static void create_hub(lv_obj_t *panel)
     lv_obj_set_width(drawer.hub, CONTROLS_W);
 }
 
+static void on_drag(lv_event_t *e)
+{
+    static int32_t start_y;
+    lv_point_t point;
+    lv_indev_get_point(lv_indev_active(), &point);
+    if (lv_event_get_code(e) == LV_EVENT_PRESSED)
+        start_y = point.y;
+    else if (start_y - point.y > CLOSE_DRAG)
+        quick_drawer_close();
+}
+
+static void add_drag_to_close(lv_obj_t *obj)
+{
+    lv_obj_add_event_cb(obj, on_drag, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(obj, on_drag, LV_EVENT_PRESSING, NULL);
+}
+
 static void create_handle(lv_obj_t *panel)
 {
     lv_obj_t *handle = sui_box_create(panel);
     lv_obj_add_flag(handle, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_set_size(handle, HANDLE_W, HANDLE_H);
+    lv_obj_set_size(handle, LV_PCT(100), HANDLE_H);
     lv_obj_add_event_cb(handle, on_close, LV_EVENT_CLICKED, NULL);
+    add_drag_to_close(handle);
     lv_obj_t *bar = sui_box_create(handle);
     lv_obj_set_size(bar, HANDLE_BAR_W, HANDLE_BAR_H);
     lv_obj_set_style_radius(bar, LV_RADIUS_CIRCLE, 0);
@@ -389,6 +407,7 @@ void quick_drawer_open(void)
     lv_obj_set_flex_flow(drawer.panel, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_flex_align(drawer.panel, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_add_event_cb(drawer.panel, on_gesture, LV_EVENT_GESTURE, NULL);
+    add_drag_to_close(drawer.panel);
 
     create_top_row(drawer.panel);
     create_controls(drawer.panel);
