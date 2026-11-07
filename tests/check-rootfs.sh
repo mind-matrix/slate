@@ -31,6 +31,7 @@ installed() { [ -f "$ROOTFS/var/lib/dpkg/info/$1.list" ] || [ -f "$ROOTFS/var/li
 not_installed() { ! installed "$1"; }
 masked() { [ "$(readlink "$ROOTFS/etc/systemd/system/$1")" = /dev/null ]; }
 file_exists() { [ -f "$ROOTFS$1" ]; }
+boot_config_has() { grep -qx "$1" "$ROOTFS/boot/firmware/config.txt"; }
 in_group() { grep -qE "^$1:[^:]*:[^:]*:(.*,)?$2(,|$)" "$ROOTFS/etc/group"; }
 
 check "user marvin exists" has_user marvin
@@ -51,6 +52,9 @@ check "polkit rule for marvin" file_exists /etc/polkit-1/rules.d/50-slate.rules
 check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
 check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
 check "marvin is in bluetooth group" in_group bluetooth marvin
+check "camera auto-detect is off" boot_config_has camera_auto_detect=0
+check "display auto-detect is on" boot_config_has display_auto_detect=1
+check "touch display 2 is landscape" boot_config_has dtoverlay=vc4-kms-dsi-ili9881-7inch,rotation=90
 case "$VARIANT" in
 	dev) check "ssh is enabled" ssh_enabled ;;
 	release) check "ssh is disabled" ssh_disabled ;;
