@@ -5,7 +5,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${SLATE_BUILD_ROOT:-${HOME}/slate-build}/shell"
 SYNCED_DIR="${WORK_DIR}/src"
 BUILD_IMAGE="slate-shell-build"
-SCREENS=(desktop settings about diagnostics)
+SCREENS=(desktop settings about diagnostics datetime timezone_picker)
 
 usage() {
 	echo "usage: $0 sim|run|snapshot|pi" >&2

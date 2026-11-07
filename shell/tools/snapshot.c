@@ -3,17 +3,21 @@
 
 #include "about.h"
 #include "components/status_bar.h"
+#include "datetime.h"
 #include "desktop.h"
 #include "diagnostics.h"
 #include "platform/platform.h"
 #include "settings.h"
 #include "theme/theme.h"
+#include "timezone_picker.h"
 
 static const sui_screen_def_t *const screens[] = {
     &desktop_screen,
     &settings_screen,
     &about_screen,
     &diagnostics_screen,
+    &datetime_screen,
+    &timezone_picker_screen,
 };
 
 static const sui_screen_def_t *find_screen(const char *name)
@@ -39,7 +43,7 @@ int main(int argc, char **argv)
 {
     const sui_screen_def_t *screen = argc == 3 ? find_screen(argv[2]) : NULL;
     if (!screen) {
-        fprintf(stderr, "usage: %s <out.rgb565> desktop|settings|about|diagnostics\n", argv[0]);
+        fprintf(stderr, "usage: %s <out.rgb565> <screen name>\n", argv[0]);
         return 2;
     }
 

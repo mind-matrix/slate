@@ -59,8 +59,11 @@ target_link_libraries(slateui PUBLIC lvgl m ${SLATE_BACKEND_LIBS})
 target_compile_options(slateui PRIVATE -Wall -Wextra)
 
 add_library(slateservices STATIC
-    services/sysinfo.c)
+    services/sysinfo.c
+    services/timezone.c)
 target_include_directories(slateservices PUBLIC services)
+pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
+target_link_libraries(slateservices PUBLIC PkgConfig::SYSTEMD)
 target_compile_options(slateservices PRIVATE -Wall -Wextra)
 
 add_library(slatescreens STATIC
@@ -68,7 +71,9 @@ add_library(slatescreens STATIC
     screens/app_stub.c
     screens/settings.c
     screens/about.c
-    screens/diagnostics.c)
+    screens/diagnostics.c
+    screens/datetime.c
+    screens/timezone_picker.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)
