@@ -6,9 +6,9 @@
 #include "check.h"
 
 static const char status[] =
-    "PipeWire 'pipewire-0' [1.4.2, marvin@slate, cookie:1636227569]\n"
+    "PipeWire 'pipewire-0' [1.4.2, slate@slate, cookie:1636227569]\n"
     " └─ Clients:\n"
-    "        33. WirePlumber                         [1.4.2, marvin@slate, pid:766]\n"
+    "        33. WirePlumber                         [1.4.2, slate@slate, pid:766]\n"
     "\n"
     "Audio\n"
     " ├─ Devices:\n"

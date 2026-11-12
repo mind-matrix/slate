@@ -37,7 +37,7 @@ unit_disabled() { ! unit_enabled "$1"; }
 owned_by() { [ "$(stat -c %u "$ROOTFS$2")" = "$(awk -F: -v u="$1" '$1 == u { print $3 }' "$ROOTFS/etc/passwd")" ]; }
 in_group() { grep -qE "^$1:[^:]*:[^:]*:(.*,)?$2(,|$)" "$ROOTFS/etc/group"; }
 
-check "user marvin exists" has_user marvin
+check "user slate exists" has_user slate
 check "hostname is slate" hostname_is slate
 check "cloud-init is not installed" cloud_init_absent
 for package in pipewire wireplumber libspa-0.2-bluetooth libvterm0; do
@@ -51,10 +51,10 @@ for timer in apt-daily.timer apt-daily-upgrade.timer e2scrub_all.timer; do
 done
 check "journald is volatile" file_exists /etc/systemd/journald.conf.d/50-slate.conf
 check "swap uses zram" file_exists /etc/rpi/swap.conf.d/50-slate.conf
-check "polkit rule for marvin" file_exists /usr/share/polkit-1/rules.d/50-slate.rules
-check "marvin session lingers" file_exists /var/lib/systemd/linger/marvin
-check "marvin memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
-check "marvin is in bluetooth group" in_group bluetooth marvin
+check "polkit rule for slate" file_exists /usr/share/polkit-1/rules.d/50-slate.rules
+check "slate session lingers" file_exists /var/lib/systemd/linger/slate
+check "slate memlock is unlimited" file_exists /etc/security/limits.d/50-slate-memlock.conf
+check "slate is in bluetooth group" in_group bluetooth slate
 check "bluetooth audio works without a seat" file_exists /usr/share/wireplumber/wireplumber.conf.d/50-slate-bluez.conf
 check "alert sounds use audio roles" file_exists /usr/share/wireplumber/wireplumber.conf.d/60-slate-roles.conf
 check "alarm sound is installed" file_exists /usr/share/slate/sounds/alarm.wav
@@ -77,8 +77,8 @@ check "the updater can verify and download" installed minisign
 check "no stale shell copy in /usr/local" test ! -e "$ROOTFS/usr/local/bin/slate-shell"
 case "$VARIANT" in
 	dev)
-		check "marvin can redeploy the shell" owned_by marvin /usr/bin/slate-shell
-		check "marvin can restart the shell" file_exists /etc/polkit-1/rules.d/50-slate-shell-deploy.rules
+		check "slate can redeploy the shell" owned_by slate /usr/bin/slate-shell
+		check "slate can restart the shell" file_exists /etc/polkit-1/rules.d/50-slate-shell-deploy.rules
 		check "ssh is enabled" ssh_enabled
 		check "evtest is installed" installed evtest
 		check "slate-memreport is executable" test -x "$ROOTFS/usr/local/bin/slate-memreport"

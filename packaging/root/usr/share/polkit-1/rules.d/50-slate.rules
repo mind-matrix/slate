@@ -11,7 +11,7 @@ var slateUpdateUnits = {
 };
 
 polkit.addRule(function (action, subject) {
-    if (subject.user !== "marvin") {
+    if (subject.user !== "slate") {
         return polkit.Result.NOT_HANDLED;
     }
     for (var i = 0; i < slateUserActionPrefixes.length; i++) {

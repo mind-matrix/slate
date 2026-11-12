@@ -1,7 +1,7 @@
 polkit.addRule(function (action, subject) {
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
         action.lookup("unit") === "slate-shell.service" &&
-        subject.user === "marvin") {
+        subject.user === "slate") {
         return polkit.Result.YES;
     }
     return polkit.Result.NOT_HANDLED;
