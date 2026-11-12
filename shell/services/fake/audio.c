@@ -8,14 +8,16 @@ typedef struct {
 } fake_level_t;
 
 static fake_level_t levels[] = { { 44, false }, { 100, false } };
-static uint32_t default_output = 48;
+static uint32_t default_output = 47;
 
 static const audio_device_t outputs[] = {
-    { 48, "Pico", "Bluetooth speaker", false },
-    { 49, "HDMI", "Display audio", false },
+    { .id = 47, .name = "vivo Buds", .kind = "Bluetooth speaker", .address = "20:A3:66:78:0D:2E", .music = true },
+    { .id = 48, .name = "Pico", .kind = "Bluetooth speaker", .address = "41:42:2D:9F:C7:0F", .music = true },
+    { .id = 49, .name = "HDMI", .kind = "Display audio" },
 };
 static const audio_device_t inputs[] = {
-    { 50, "Pico", "Bluetooth · call quality while in use", true },
+    { .id = 50, .name = "vivo Buds", .kind = "Bluetooth · call quality while in use", .address = "20:A3:66:78:0D:2E",
+      .loopback = true, .is_default = true },
 };
 
 bool audio_get_volume(audio_direction_t direction, int *percent, bool *muted)

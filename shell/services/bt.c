@@ -57,3 +57,16 @@ size_t bt_sort_devices(bt_device_t *devices, size_t count)
     qsort(devices, kept, sizeof(*devices), by_signal);
     return kept;
 }
+
+bool bt_path_has_address(const char *path, const char *address)
+{
+    const char *dev = strstr(path, "dev_");
+    if (!dev || !address[0])
+        return false;
+    dev += 4;
+    size_t i = 0;
+    for (; address[i] && dev[i]; i++)
+        if ((address[i] == ':' ? '_' : address[i]) != dev[i])
+            return false;
+    return !address[i] && !dev[i];
+}

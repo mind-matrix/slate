@@ -7,6 +7,8 @@
 #include "prefs.h"
 
 #define VOLUME_TAG "[vol:"
+#define CLASS_TAG "[Audio/"
+#define FILTER_SOURCE "[Audio/Source]"
 
 bool audio_parse_volume(const char *text, int *percent, bool *muted)
 {
@@ -25,6 +27,12 @@ static bool line_has(const char *line, size_t len, const char *needle)
         if (memcmp(line + i, needle, n) == 0)
             return true;
     return false;
+}
+
+static bool starts_with(const char *p, const char *end, const char *tag)
+{
+    size_t n = strlen(tag);
+    return (size_t)(end - p) >= n && memcmp(p, tag, n) == 0;
 }
 
 static bool parse_entry(const char *line, size_t len, audio_device_t *out)
@@ -50,8 +58,8 @@ static bool parse_entry(const char *line, size_t len, audio_device_t *out)
         p++;
 
     const char *name_end = end;
-    for (const char *q = p; q + strlen(VOLUME_TAG) <= end; q++)
-        if (strncmp(q, VOLUME_TAG, strlen(VOLUME_TAG)) == 0) {
+    for (const char *q = p; q < end; q++)
+        if (starts_with(q, end, VOLUME_TAG) || starts_with(q, end, CLASS_TAG)) {
             name_end = q;
             break;
         }
@@ -73,7 +81,7 @@ static bool parse_entry(const char *line, size_t len, audio_device_t *out)
 size_t audio_parse_status(const char *text, audio_direction_t direction, audio_device_t *out, size_t max)
 {
     const char *wanted = direction == AUDIO_OUTPUT ? "Sinks:" : "Sources:";
-    bool in_audio = false, in_section = false;
+    bool in_audio = false, in_section = false, in_filters = false;
     size_t count = 0;
 
     for (const char *line = text; *line && count < max;) {
@@ -82,12 +90,15 @@ size_t audio_parse_status(const char *text, audio_direction_t direction, audio_d
 
         if (len > 0 && isalpha((unsigned char)line[0])) {
             in_audio = strncmp(line, "Audio", 5) == 0;
-            in_section = false;
+            in_section = in_filters = false;
         } else if (in_audio && memchr(line, ':', len) && (line_has(line, len, "├─") || line_has(line, len, "└─"))) {
             const char *colon = memchr(line, ':', len);
             size_t wanted_len = strlen(wanted);
             in_section = colon - line + 1 >= (long)wanted_len && strncmp(colon + 1 - wanted_len, wanted, wanted_len) == 0;
+            in_filters = direction == AUDIO_INPUT && line_has(line, len, "Filters:");
         } else if (in_section && parse_entry(line, len, &out[count]))
+            count++;
+        else if (in_filters && line_has(line, len, FILTER_SOURCE) && parse_entry(line, len, &out[count]))
             count++;
 
         line = next ? next + 1 : line + len;
@@ -104,6 +115,39 @@ const char *audio_kind_label(const char *inspect, audio_direction_t direction)
     if (strstr(inspect, ".usb-") || strstr(inspect, "\"usb\""))
         return direction == AUDIO_OUTPUT ? "USB audio" : "USB microphone";
     return direction == AUDIO_OUTPUT ? "Built-in audio" : "Built-in microphone";
+}
+
+static bool inspect_value(const char *inspect, const char *key, char *out, size_t len)
+{
+    char needle[64];
+    snprintf(needle, sizeof(needle), " %s = \"", key);
+    const char *start = strstr(inspect, needle);
+    if (!start || len == 0)
+        return false;
+    start += strlen(needle);
+    const char *end = strchr(start, '"');
+    if (!end)
+        return false;
+    size_t n = (size_t)(end - start);
+    if (n >= len)
+        n = len - 1;
+    memcpy(out, start, n);
+    out[n] = '\0';
+    return true;
+}
+
+void audio_parse_inspect(const char *inspect, audio_device_t *out)
+{
+    char value[AUDIO_NAME_MAX];
+    if (inspect_value(inspect, "node.description", value, sizeof(value)) && value[0])
+        snprintf(out->name, sizeof(out->name), "%s", value);
+    if (!inspect_value(inspect, "api.bluez5.address", out->address, sizeof(out->address)) &&
+        inspect_value(inspect, "node.name", value, sizeof(value)) && strncmp(value, "bluez_input.", 12) == 0)
+        snprintf(out->address, sizeof(out->address), "%.*s", AUDIO_ADDRESS_MAX - 1, value + 12);
+    out->music = inspect_value(inspect, "api.bluez5.profile", value, sizeof(value)) && strstr(value, "a2dp") != NULL;
+    out->loopback = inspect_value(inspect, "bluez5.loopback", value, sizeof(value)) && strcmp(value, "true") == 0;
+    out->internal = inspect_value(inspect, "node.name", value, sizeof(value)) &&
+                    strncmp(value, "bluez_input_internal.", 21) == 0;
 }
 
 static const char *const role_nodes[AUDIO_ROLE_COUNT] = {
@@ -192,4 +236,26 @@ bool audio_apply_levels(void)
     for (size_t i = 0; i < sizeof(levels) / sizeof(levels[0]); i++)
         ok = apply((int)i, audio_level(levels[i].key)) && ok;
     return ok;
+}
+
+void audio_device_detail(const audio_device_t *device, audio_direction_t direction, const char *bt_kind, char *out,
+                         size_t len)
+{
+    if (!device->address[0]) {
+        snprintf(out, len, "%s", device->kind);
+        return;
+    }
+    char kind[AUDIO_KIND_MAX];
+    size_t i = 0;
+    for (; bt_kind && bt_kind[i] && i + 1 < sizeof(kind); i++)
+        kind[i] = (char)tolower((unsigned char)bt_kind[i]);
+    kind[i] = '\0';
+    if (!kind[0] || strcmp(kind, "device") == 0)
+        snprintf(kind, sizeof(kind), "%s", direction == AUDIO_OUTPUT ? "speaker" : "headset");
+    if (direction == AUDIO_OUTPUT)
+        snprintf(out, len, "Bluetooth %s · %s quality", kind, device->music ? "music" : "call");
+    else if (device->loopback)
+        snprintf(out, len, "Bluetooth %s · switches to call quality while the mic is in use", kind);
+    else
+        snprintf(out, len, "Bluetooth %s · call quality", kind);
 }

@@ -25,16 +25,25 @@ typedef enum {
     AUDIO_ROLE_COUNT,
 } audio_role_t;
 
+#define AUDIO_ADDRESS_MAX 18
+
 typedef struct {
     uint32_t id;
     char name[AUDIO_NAME_MAX];
     char kind[AUDIO_KIND_MAX];
+    char address[AUDIO_ADDRESS_MAX];
     bool is_default;
+    bool music;
+    bool loopback;
+    bool internal;
 } audio_device_t;
 
 bool audio_parse_volume(const char *text, int *percent, bool *muted);
 size_t audio_parse_status(const char *text, audio_direction_t direction, audio_device_t *out, size_t max);
 const char *audio_kind_label(const char *inspect, audio_direction_t direction);
+void audio_parse_inspect(const char *inspect, audio_device_t *out);
+void audio_device_detail(const audio_device_t *device, audio_direction_t direction, const char *bt_kind, char *out,
+                         size_t len);
 
 bool audio_get_volume(audio_direction_t direction, int *percent, bool *muted);
 bool audio_set_volume(audio_direction_t direction, int percent);

@@ -53,12 +53,19 @@ size_t audio_list(audio_direction_t direction, audio_device_t *out, size_t max)
 
     if (status && inspect && run("wpctl status 2>/dev/null", status, STATUS_BUF))
         count = audio_parse_status(status, direction, out, max);
+    size_t kept = 0;
     for (size_t i = 0; i < count; i++) {
         char command[64];
-        snprintf(command, sizeof(command), "wpctl inspect %u 2>/dev/null", out[i].id);
-        const char *kind = run(command, inspect, INSPECT_BUF) ? audio_kind_label(inspect, direction) : "";
-        snprintf(out[i].kind, sizeof(out[i].kind), "%s", kind);
+        audio_device_t device = out[i];
+        snprintf(command, sizeof(command), "wpctl inspect %u 2>/dev/null", device.id);
+        if (run(command, inspect, INSPECT_BUF)) {
+            audio_parse_inspect(inspect, &device);
+            snprintf(device.kind, sizeof(device.kind), "%s", audio_kind_label(inspect, direction));
+        }
+        if (!device.internal)
+            out[kept++] = device;
     }
+    count = kept;
     free(status);
     free(inspect);
     return count;

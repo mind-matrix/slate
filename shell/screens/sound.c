@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "audio.h"
+#include "bt.h"
 #include "components/icon.h"
 #include "components/list.h"
 #include "components/slider_row.h"
@@ -13,6 +14,7 @@
 #define REFRESH_MS 5000
 #define SIGNATURE_MAX 1024
 #define COLUMN_GAP 24
+#define DETAIL_MAX 96
 #define LEVEL_TITLE_W 158
 #define DUCK_VALUE_W 108
 #define DUCK_TITLE_W 230
@@ -86,8 +88,9 @@ static void show_devices(audio_direction_t direction)
     size_t used = 0;
     column->count = audio_list(direction, column->devices, AUDIO_MAX_DEVICES);
     for (size_t i = 0; i < column->count; i++) {
-        int n = snprintf(signature + used, sizeof(signature) - used, "%u|%s|%d;", column->devices[i].id,
-                         column->devices[i].name, column->devices[i].is_default);
+        int n = snprintf(signature + used, sizeof(signature) - used, "%u|%s|%d%d%d;", column->devices[i].id,
+                         column->devices[i].name, column->devices[i].is_default, column->devices[i].music,
+                         column->devices[i].loopback);
         if (n < 0 || (size_t)n >= sizeof(signature) - used)
             break;
         used += (size_t)n;
@@ -96,11 +99,19 @@ static void show_devices(audio_direction_t direction)
         return;
     snprintf(column->signature, sizeof(column->signature), "%s", signature);
 
+    static bt_device_t paired[BT_MAX_DEVICES];
+    size_t paired_count = bt_list(paired, BT_MAX_DEVICES);
     lv_obj_clean(column->list);
     for (size_t i = 0; i < column->count; i++) {
         const audio_device_t *device = &column->devices[i];
         bool selectable = direction == AUDIO_OUTPUT;
-        sui_row_t spec = { .title = device->name, .detail = device->kind,
+        const char *bt_kind = NULL;
+        char detail[DETAIL_MAX];
+        for (size_t b = 0; b < paired_count && !bt_kind; b++)
+            if (bt_path_has_address(paired[b].path, device->address))
+                bt_kind = bt_kind_label(paired[b].icon);
+        audio_device_detail(device, direction, bt_kind, detail, sizeof(detail));
+        sui_row_t spec = { .title = device->name, .detail = detail,
                            .trailing = selectable ? SUI_TRAILING_RADIO : SUI_TRAILING_NONE };
         lv_obj_t *row = sui_list_row_create(column->list, &spec);
         if (selectable) {

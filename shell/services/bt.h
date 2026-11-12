@@ -34,6 +34,7 @@ typedef void (*bt_failed_cb_t)(const char *path);
 const char *bt_kind_label(const char *icon);
 void bt_format_passkey(uint32_t passkey, char *out, size_t len);
 size_t bt_sort_devices(bt_device_t *devices, size_t count);
+bool bt_path_has_address(const char *path, const char *address);
 
 bool bt_available(void);
 bool bt_powered(void);

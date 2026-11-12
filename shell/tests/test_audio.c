@@ -121,8 +121,86 @@ static void test_level_defaults(void)
     rmdir(home);
 }
 
+static const char headset[] =
+    "Audio\n"
+    " ├─ Sources:\n"
+    " │      108. vivo Buds                           [vol: 1.00]\n"
+    " │  \n"
+    " ├─ Filters:\n"
+    " │    - loopback-792-22\n"
+    " │  *   106. bluez_input.20:A3:66:78:0D:2E                                [Audio/Source]\n"
+    " │      107. bluez_capture_internal.20:A3:66:78:0D:2E                     [Stream/Input/Audio/Internal]\n"
+    " │      70. input.loopback.sink.role.multimedia                           [Audio/Sink]\n"
+    " │  \n"
+    " └─ Streams:\n";
+
+static void test_headset_sources(void)
+{
+    audio_device_t found[AUDIO_MAX_DEVICES];
+    CHECK(audio_parse_status(headset, AUDIO_INPUT, found, AUDIO_MAX_DEVICES) == 2);
+    CHECK(found[0].id == 108 && strcmp(found[0].name, "vivo Buds") == 0);
+    CHECK(found[1].id == 106 && found[1].is_default);
+    CHECK(strcmp(found[1].name, "bluez_input.20:A3:66:78:0D:2E") == 0);
+    CHECK(audio_parse_status(headset, AUDIO_OUTPUT, found, AUDIO_MAX_DEVICES) == 0);
+}
+
+static void test_inspect(void)
+{
+    audio_device_t loopback = { .id = 106, .name = "bluez_input.20:A3:66:78:0D:2E" };
+    audio_parse_inspect("id 106, type PipeWire:Interface:Node\n"
+                        "    bluez5.loopback = \"true\"\n"
+                        "  * media.class = \"Audio/Source\"\n"
+                        "  * node.description = \"vivo Buds\"\n"
+                        "  * node.name = \"bluez_input.20:A3:66:78:0D:2E\"\n",
+                        &loopback);
+    CHECK(strcmp(loopback.name, "vivo Buds") == 0);
+    CHECK(strcmp(loopback.address, "20:A3:66:78:0D:2E") == 0);
+    CHECK(loopback.loopback && !loopback.internal && !loopback.music);
+
+    audio_device_t sink = { .id = 115 };
+    audio_parse_inspect("    api.bluez5.address = \"20:A3:66:78:0D:2E\"\n"
+                        "    api.bluez5.profile = \"a2dp-sink\"\n"
+                        "    bluez5.loopback = \"false\"\n"
+                        "  * node.description = \"vivo Buds\"\n"
+                        "  * node.name = \"bluez_output.20_A3_66_78_0D_2E.1\"\n",
+                        &sink);
+    CHECK(sink.music && !sink.loopback && strcmp(sink.address, "20:A3:66:78:0D:2E") == 0);
+
+    audio_device_t internal = { .id = 108 };
+    audio_parse_inspect("    api.bluez5.address = \"20:A3:66:78:0D:2E\"\n"
+                        "  * node.name = \"bluez_input_internal.20_A3_66_78_0D_2E.0\"\n",
+                        &internal);
+    CHECK(internal.internal);
+
+    audio_device_t builtin = { .id = 62, .name = "Built-in Audio" };
+    audio_parse_inspect("  * node.name = \"alsa_output.platform\"\n", &builtin);
+    CHECK(strcmp(builtin.name, "Built-in Audio") == 0 && !builtin.address[0]);
+}
+
+static void test_detail(void)
+{
+    char out[96];
+    audio_device_t music = { .address = "20:A3:66:78:0D:2E", .music = true };
+    audio_device_detail(&music, AUDIO_OUTPUT, "Headset", out, sizeof(out));
+    CHECK(strcmp(out, "Bluetooth headset · music quality") == 0);
+    audio_device_t call = { .address = "20:A3:66:78:0D:2E" };
+    audio_device_detail(&call, AUDIO_OUTPUT, "Speaker", out, sizeof(out));
+    CHECK(strcmp(out, "Bluetooth speaker · call quality") == 0);
+    audio_device_t mic = { .address = "20:A3:66:78:0D:2E", .loopback = true };
+    audio_device_detail(&mic, AUDIO_INPUT, "Headset", out, sizeof(out));
+    CHECK(strcmp(out, "Bluetooth headset · switches to call quality while the mic is in use") == 0);
+    audio_device_detail(&music, AUDIO_OUTPUT, NULL, out, sizeof(out));
+    CHECK(strcmp(out, "Bluetooth speaker · music quality") == 0);
+    audio_device_t hdmi = { .kind = "Display audio" };
+    audio_device_detail(&hdmi, AUDIO_OUTPUT, NULL, out, sizeof(out));
+    CHECK(strcmp(out, "Display audio") == 0);
+}
+
 int main(void)
 {
+    test_headset_sources();
+    test_inspect();
+    test_detail();
     test_roles();
     test_level_defaults();
     test_parse_volume();

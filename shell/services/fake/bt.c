@@ -5,7 +5,8 @@
 static bool powered = true;
 
 static bt_device_t devices[] = {
-    { .path = "/fake/pico", .name = "Pico", .icon = "audio-card", .named = true, .paired = true, .connected = true, .rssi = -40 },
+    { .path = "/org/bluez/hci0/dev_20_A3_66_78_0D_2E", .name = "vivo Buds", .icon = "audio-headset", .named = true, .paired = true, .connected = true, .rssi = -38 },
+    { .path = "/org/bluez/hci0/dev_41_42_2D_9F_C7_0F", .name = "Pico", .icon = "audio-card", .named = true, .paired = true, .connected = true, .rssi = -40 },
     { .path = "/fake/desk", .name = "Desk headset", .icon = "audio-headset", .named = true, .rssi = -55 },
     { .path = "/fake/living", .name = "Living room speaker", .icon = "audio-card", .named = true, .rssi = -70 },
 };

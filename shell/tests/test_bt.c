@@ -37,8 +37,18 @@ static void test_sort(void)
     CHECK(strcmp(devices[2].name, "Far") == 0);
 }
 
+static void test_address(void)
+{
+    CHECK(bt_path_has_address("/org/bluez/hci0/dev_20_A3_66_78_0D_2E", "20:A3:66:78:0D:2E"));
+    CHECK(!bt_path_has_address("/org/bluez/hci0/dev_20_A3_66_78_0D_2E", "20:A3:66:78:0D:2F"));
+    CHECK(!bt_path_has_address("/org/bluez/hci0/dev_20_A3_66_78_0D_2E", "20:A3:66:78:0D"));
+    CHECK(!bt_path_has_address("/org/bluez/hci0", "20:A3:66:78:0D:2E"));
+    CHECK(!bt_path_has_address("/org/bluez/hci0/dev_20_A3_66_78_0D_2E", ""));
+}
+
 int main(void)
 {
+    test_address();
     test_kind();
     test_passkey();
     test_sort();
