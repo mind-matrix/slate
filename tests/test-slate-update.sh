@@ -29,8 +29,11 @@ cat > "$WORK/apt" <<'EOF'
 echo "$*" >> "$FAKE_LOG"
 [ "${FAKE_APT_FAIL:-0}" = 1 ] && exit 1
 if [ "$1" = install ]; then
-	version="$(basename "${@: -1}" | sed -n 's/^slate_\(.*\)_arm64\.deb$/\1/p')"
-	sed -i "s/^SLATE_VERSION=.*/SLATE_VERSION=$version/" "$FAKE_RELEASE"
+	file="$(basename "${@: -1}")"
+	version="$(echo "$file" | sed -n 's/^slate_\(.*\)_arm64\.deb$/\1/p')"
+	[ -n "$version" ] && sed -i "s/^SLATE_VERSION=.*/SLATE_VERSION=$version/" "$FAKE_RELEASE"
+	app="$(echo "$file" | sed -n 's/^\(slate-app-[a-z0-9-]*\)_\(.*\)_arm64\.deb$/\1 \2/p')"
+	[ -n "$app" ] && sed -i "s/^${app%% *} .*/$app/" "$FAKE_APPS"
 fi
 exit 0
 EOF
@@ -42,7 +45,21 @@ case "$1" in
 	*) echo "dpkg $*" >> "$FAKE_LOG" ;;
 esac
 EOF
-chmod +x "$WORK/apt" "$WORK/dpkg"
+cat > "$WORK/dpkg-deb" <<'EOF'
+#!/bin/bash
+[ "$1" = -f ] && head -c 200 "$2" | cut -d" " -f1
+EOF
+cat > "$WORK/dpkg-query" <<'EOF'
+#!/bin/bash
+package="${@: -1}"
+version="$(sed -n "s/^$package //p" "$FAKE_APPS" 2>/dev/null)"
+[ -n "$version" ] && printf %s "$version"
+EOF
+cat > "$WORK/systemctl" <<'EOF'
+#!/bin/bash
+echo "systemctl $*" >> "$FAKE_LOG"
+EOF
+chmod +x "$WORK/apt" "$WORK/dpkg" "$WORK/dpkg-deb" "$WORK/dpkg-query" "$WORK/systemctl"
 
 reset_device() {
 	rm -rf "$WORK/state" "$WORK/feed"
@@ -70,8 +87,10 @@ run() {
 		SLATE_RELEASE_FILE="$WORK/release" SLATE_IMAGE_FILE="$WORK/image" SLATE_UPDATE_APT="$WORK/apt" \
 		SLATE_UPDATE_DPKG="$WORK/dpkg" SLATE_UPDATE_PROTOCOLS="=file" FAKE_LOG="$WORK/log" \
 		FAKE_RELEASE="$WORK/release" FAKE_INSTALLED="${FAKE_INSTALLED:-}" \
+		SLATE_UPDATE_DPKG_DEB="$WORK/dpkg-deb" SLATE_UPDATE_DPKG_QUERY="$WORK/dpkg-query" \
+		SLATE_UPDATE_SYSTEMCTL="$WORK/systemctl" SLATE_APP_POLICY_DIR="$WORK/policy" \
+		SLATE_APP_FEED_BASE="file://$WORK/apps" FAKE_APPS="$WORK/apps.installed" \
 		bash "$UPDATER" "$@" >/dev/null 2>&1
-	return 0
 }
 
 reset_device 2026.11.7 dev
@@ -176,6 +195,70 @@ reset_device 2026.11.20
 printf 'state=installing\nversion=2026.11.20\n' > "$WORK/state/status"
 run recover
 check "an install that completed before a power cut counts as done" status_is state=current
+
+minisign -G -W -f -p "$WORK/app.pub" -s "$WORK/app.sec" >/dev/null
+APP_FEED="$WORK/apps/test/hello/releases/latest/download"
+app_status_is() { grep -qx "$1" "$WORK/state/apps/hello/status"; }
+app_version_is() { grep -qx "slate-app-hello $1" "$WORK/apps.installed"; }
+
+reset_app() {
+	reset_device 2026.11.20 "${1:-release}"
+	[ -n "${2:-}" ] && printf 'SLATE_DEV_APPS=%s\n' "$2" >> "$WORK/image"
+	rm -rf "$WORK/apps" "$WORK/policy"
+	mkdir -p "$APP_FEED" "$WORK/policy"
+	printf 'repo=test/hello\nkey=%s\npermissions=network\n' "$(tail -n 1 "$WORK/app.pub")" > "$WORK/policy/hello.conf"
+	echo "slate-app-hello 0.1.0" > "$WORK/apps.installed"
+	publish 2026.11.20
+}
+
+publish_app() {
+	local version="$1" package="${2:-slate-app-hello}" key="${3:-$WORK/app.sec}"
+	local deb="$APP_FEED/slate-app-hello_${version}_arm64.deb"
+	echo "$package test package $version" > "$deb"
+	jq -n --arg v "$version" --arg f "$(basename "$deb")" --arg u "file://$deb" \
+		--arg h "$(sha256sum "$deb" | cut -d' ' -f1)" --argjson s "$(stat -c %s "$deb")" \
+		'{version: $v, channel: "release", min_version: "0.1.0", remove: [],
+		  package: {file: $f, url: $u, sha256: $h, size: $s}, notes: ["Hello note"]}' > "$APP_FEED/manifest.json"
+	minisign -S -s "$key" -m "$APP_FEED/manifest.json" >/dev/null
+}
+
+reset_app
+publish_app 0.2.0
+run check
+check "a check also checks installed apps" app_status_is state=available
+check "an app update reports its own version" app_status_is version=0.2.0
+check "Slate's own status is kept separate" status_is state=current
+
+reset_app
+publish_app 0.2.0
+run check hello
+run install hello
+check "an app update installs the app's package" app_version_is 0.2.0
+check "an installed app update is current without a reboot" app_status_is state=current
+check "the app is restarted after its update" grep -q "systemctl try-restart slate-app@hello.service" "$WORK/log"
+check "an app update keeps the package for recovery" test -f "$WORK/state/apps/hello/installed.deb"
+
+reset_app
+publish_app 0.2.0 slate-app-hello "$WORK/key.sec"
+run check hello
+check "an app manifest signed with another key is refused" app_status_is reason=unverified
+
+reset_app
+publish_app 0.2.0 slate
+run check hello
+run install hello
+check "an app package that claims to be Slate is refused" app_status_is reason=unverified
+check "a refused app package is not installed" app_version_is 0.1.0
+
+reset_app release hello
+publish_app 0.2.0
+run check hello
+check "a dev build of an app is not updated from GitHub" app_status_is state=current
+
+reset_app
+publish_app 0.2.0
+run check ghost
+check "an app without a Slate policy is not checked" test ! -e "$WORK/state/apps/ghost"
 
 echo
 if [ "$failures" -eq 0 ]; then

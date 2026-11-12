@@ -1,7 +1,8 @@
 #!/bin/bash
 set -uo pipefail
 
-STATE_DIR="${SLATE_UPDATE_STATE:-/var/lib/slate-update}"
+BASE_STATE="${SLATE_UPDATE_STATE:-/var/lib/slate-update}"
+STATE_DIR="$BASE_STATE"
 FEED_URL="${SLATE_UPDATE_FEED:-https://github.com/mind-matrix/slate/releases/latest/download}"
 PUBLIC_KEY="${SLATE_UPDATE_KEY:-/usr/share/slate/update.pub}"
 RELEASE_FILE="${SLATE_RELEASE_FILE:-/usr/lib/slate/release}"
@@ -10,32 +11,76 @@ APT="${SLATE_UPDATE_APT:-apt-get}"
 DPKG="${SLATE_UPDATE_DPKG:-dpkg}"
 PROTOCOLS="${SLATE_UPDATE_PROTOCOLS:-=https}"
 FREE_KB="${SLATE_UPDATE_FREE_KB:-}"
+POLICY_DIR="${SLATE_APP_POLICY_DIR:-/usr/share/slate/app-policy}"
+APP_FEED_BASE="${SLATE_APP_FEED_BASE:-https://github.com}"
+DPKG_QUERY="${SLATE_UPDATE_DPKG_QUERY:-dpkg-query}"
+SYSTEMCTL="${SLATE_UPDATE_SYSTEMCTL:-systemctl}"
+DPKG_DEB="${SLATE_UPDATE_DPKG_DEB:-dpkg-deb}"
+APP_ID=""
+APP_KEY=""
 
-STAGING="$STATE_DIR/staging"
-STATUS="$STATE_DIR/status"
-MANIFEST="$STATE_DIR/manifest.json"
-SIGNATURE="$STATE_DIR/manifest.json.minisig"
-NOTES="$STATE_DIR/notes"
-CHECKED="$STATE_DIR/checked"
-INSTALLED_DEB="$STATE_DIR/installed.deb"
-PREVIOUS_DEB="$STATE_DIR/previous.deb"
+set_paths() {
+	STAGING="$STATE_DIR/staging"
+	STATUS="$STATE_DIR/status"
+	MANIFEST="$STATE_DIR/manifest.json"
+	SIGNATURE="$STATE_DIR/manifest.json.minisig"
+	NOTES="$STATE_DIR/notes"
+	CHECKED="$STATE_DIR/checked"
+	INSTALLED_DEB="$STATE_DIR/installed.deb"
+	PREVIOUS_DEB="$STATE_DIR/previous.deb"
+}
+set_paths
 SPARE_KB=51200
 
 VERSION_PATTERN='^[0-9]+(\.[0-9]+)*$'
 FILE_PATTERN='^[A-Za-z0-9._+-]+\.deb$'
 HASH_PATTERN='^[0-9a-f]{64}$'
 PACKAGE_PATTERN='^[a-z0-9][a-z0-9+.-]*$'
+APP_PATTERN='^[a-z0-9][a-z0-9-]*$'
+KEY_PATTERN='^[A-Za-z0-9+/=]+$'
+REPO_PATTERN='^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$'
 
 value_of() {
 	sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/\1/p" "$2" 2>/dev/null | head -n 1
 }
 
 installed_version() {
-	value_of SLATE_VERSION "$RELEASE_FILE"
+	if [ -n "$APP_ID" ]; then
+		"$DPKG_QUERY" -W -f '${Version}' "slate-app-$APP_ID" 2>/dev/null
+	else
+		value_of SLATE_VERSION "$RELEASE_FILE"
+	fi
 }
 
 installed_channel() {
-	value_of SLATE_CHANNEL "$RELEASE_FILE"
+	if [ -z "$APP_ID" ]; then
+		value_of SLATE_CHANNEL "$RELEASE_FILE"
+	elif [[ " $(value_of SLATE_DEV_APPS "$IMAGE_FILE") " == *" $APP_ID "* ]]; then
+		echo dev
+	else
+		echo release
+	fi
+}
+
+use_app() {
+	APP_ID="$1"
+	local policy="$POLICY_DIR/$APP_ID.conf" repo
+	matches "$APP_ID" "$APP_PATTERN" && [ -f "$policy" ] || return 1
+	repo="$(value_of repo "$policy")"
+	APP_KEY="$(value_of key "$policy")"
+	matches "$repo" "$REPO_PATTERN" && matches "$APP_KEY" "$KEY_PATTERN" || return 1
+	FEED_URL="$APP_FEED_BASE/$repo/releases/latest/download"
+	STATE_DIR="$BASE_STATE/apps/$APP_ID"
+	set_paths
+}
+
+installed_apps() {
+	local policy id
+	for policy in "$POLICY_DIR"/*.conf; do
+		[ -f "$policy" ] || continue
+		id="$(basename "$policy" .conf)"
+		"$DPKG_QUERY" -W -f '${Version}' "slate-app-$id" >/dev/null 2>&1 && echo "$id"
+	done
 }
 
 write_status() {
@@ -56,7 +101,11 @@ fetch() {
 }
 
 verify_manifest() {
-	minisign -Vq -p "$PUBLIC_KEY" -m "$1/manifest.json" -x "$1/manifest.json.minisig" >/dev/null 2>&1
+	if [ -n "$APP_ID" ]; then
+		minisign -Vq -P "$APP_KEY" -m "$1/manifest.json" -x "$1/manifest.json.minisig" >/dev/null 2>&1
+	else
+		minisign -Vq -p "$PUBLIC_KEY" -m "$1/manifest.json" -x "$1/manifest.json.minisig" >/dev/null 2>&1
+	fi
 }
 
 field() {
@@ -82,8 +131,9 @@ read_manifest() {
 		matches "$M_SIZE" '^[0-9]+$' || return 1
 	local package
 	for package in $M_REMOVE; do
-		matches "$package" "$PACKAGE_PATTERN" && [ "$package" != slate ] || return 1
+		matches "$package" "$PACKAGE_PATTERN" && [ "$package" != slate ] && [[ "$package" != slate-app-* ]] || return 1
 	done
+	[ -z "$APP_ID" ] || [ "$M_FILE" = "slate-app-${APP_ID}_${M_VERSION}_arm64.deb" ] || return 1
 }
 
 is_newer() {
@@ -186,6 +236,10 @@ install_update() {
 	[ "$(stat -c %s "$deb")" = "$M_SIZE" ] && echo "$M_SHA  $deb" | sha256sum -c --quiet - >/dev/null 2>&1 ||
 		fail unverified
 
+	local expected=slate
+	[ -z "$APP_ID" ] || expected="slate-app-$APP_ID"
+	[ "$("$DPKG_DEB" -f "$deb" Package 2>/dev/null)" = "$expected" ] || fail unverified
+
 	write_status state=installing "version=$M_VERSION" "size=$M_SIZE" progress=100
 	DEBIAN_FRONTEND=noninteractive "$APT" install -y --no-install-recommends "$deb" > "$STATE_DIR/install.log" 2>&1 ||
 		fail failed
@@ -201,7 +255,12 @@ install_update() {
 	mv -f "$deb" "$INSTALLED_DEB"
 	rm -rf "$STAGING"
 	rm -f "$MANIFEST" "$SIGNATURE"
-	write_status state=restart "version=$M_VERSION"
+	if [ -n "$APP_ID" ]; then
+		"$SYSTEMCTL" try-restart "slate-app@$APP_ID.service" >/dev/null 2>&1
+		write_status state=current "version=$M_VERSION"
+	else
+		write_status state=restart "version=$M_VERSION"
+	fi
 }
 
 recover() {
@@ -228,12 +287,29 @@ recover() {
 	esac
 }
 
+for_each_app() {
+	local id
+	for id in $(installed_apps); do
+		bash "$0" "$1" "$id"
+	done
+}
+
+if [ -n "${2:-}" ]; then
+	use_app "$2" || { echo "unknown app: $2" >&2; exit 2; }
+fi
+
 case "${1:-}" in
-	check) check ;;
+	check)
+		(check)
+		[ -n "$APP_ID" ] || for_each_app check
+		;;
 	install) install_update ;;
-	recover) recover ;;
+	recover)
+		(recover)
+		[ -n "$APP_ID" ] || for_each_app recover
+		;;
 	*)
-		echo "usage: $0 check|install|recover" >&2
+		echo "usage: $0 check|install|recover [app]" >&2
 		exit 2
 		;;
 esac
