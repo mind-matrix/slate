@@ -1,0 +1,176 @@
+#!/bin/bash
+set -uo pipefail
+
+ROOT="${SLATE_APPS_ROOT:-}"
+APPS_DIR="$ROOT/usr/share/slate/apps"
+POLICY_DIR="$ROOT/usr/share/slate/app-policy"
+CATALOG_DIR="$ROOT/usr/share/slate/permissions"
+UNIT_DIR="$ROOT/etc/systemd/system"
+POLKIT_DIR="$ROOT/etc/polkit-1/rules.d"
+GRANTED_DIR="$ROOT/run/slate/apps"
+IMAGE_FILE="$ROOT/etc/slate-release"
+SYSTEMCTL="${SLATE_APPS_SYSTEMCTL:-systemctl}"
+USERADD="${SLATE_APPS_USERADD:-useradd}"
+GROUPADD="${SLATE_APPS_GROUPADD:-groupadd}"
+GETENT="${SLATE_APPS_GETENT:-getent}"
+
+APP_PATTERN='^[a-z0-9][a-z0-9-]*$'
+PERMISSION_PATTERN='^[a-z][a-z0-9-]*$'
+
+value_of() {
+	sed -n "s/^$1=\"\{0,1\}\([^\"]*\)\"\{0,1\}$/\1/p" "$2" 2>/dev/null | head -n 1
+}
+
+values_of() {
+	sed -n "s/^$1=\(.*\)$/\1/p" "$2" 2>/dev/null
+}
+
+is_dev_app() {
+	[[ " $(value_of SLATE_DEV_APPS "$IMAGE_FILE") " == *" $1 "* ]]
+}
+
+granted_permissions() {
+	local id="$1" requested granted name
+	requested=" $(value_of permissions "$APPS_DIR/$id.app") "
+	if is_dev_app "$id" && [ ! -f "$POLICY_DIR/$id.conf" ]; then
+		granted="$requested"
+	else
+		granted=" $(value_of permissions "$POLICY_DIR/$id.conf") "
+	fi
+	for name in $requested; do
+		[[ "$name" =~ $PERMISSION_PATTERN ]] && [ -f "$CATALOG_DIR/$name.conf" ] && [[ "$granted" == *" $name "* ]] &&
+			echo "$name"
+	done | sort -u
+}
+
+ensure_group() {
+	"$GETENT" group "$1" >/dev/null 2>&1 || "$GROUPADD" --system "$1"
+}
+
+ensure_user() {
+	local user="app-$1"
+	"$GETENT" passwd "$user" >/dev/null 2>&1 ||
+		"$USERADD" --system --user-group --no-create-home --home-dir "/var/lib/slate-apps/$1" \
+			--shell /usr/sbin/nologin "$user"
+}
+
+write_if_changed() {
+	local file="$1" content="$2"
+	if [ -z "$content" ]; then
+		[ -e "$file" ] || return 1
+		rm -f "$file"
+		return 0
+	fi
+	[ -f "$file" ] && [ "$(cat "$file")" = "$content" ] && return 1
+	mkdir -p "$(dirname "$file")"
+	printf '%s\n' "$content" > "$file.new" && mv -f "$file.new" "$file"
+}
+
+unit_dropin() {
+	local permission groups="" lines="" group
+	for permission in "$@"; do
+		lines+="$(values_of unit "$CATALOG_DIR/$permission.conf")"$'\n'
+		group="$(value_of group "$CATALOG_DIR/$permission.conf")"
+		if [ -n "$group" ]; then
+			ensure_group "$group"
+			[[ " $groups " == *" $group "* ]] || groups+=" $group"
+		fi
+	done
+	printf '[Service]\n'
+	[ -n "${groups# }" ] && printf 'SupplementaryGroups=%s\n' "${groups# }"
+	printf '%s' "$lines" | sed '/^$/d'
+}
+
+polkit_rule() {
+	local id="$1" permission actions=""
+	shift
+	for permission in "$@"; do
+		while read -r action; do
+			[ -n "$action" ] && actions+="    \"$action\","$'\n'
+		done < <(values_of polkit "$CATALOG_DIR/$permission.conf")
+	done
+	[ -n "$actions" ] || return 0
+	cat <<EOF
+var allowed = [
+${actions%,$'\n'}
+];
+
+polkit.addRule(function (action, subject) {
+    if (subject.user !== "app-$id") {
+        return polkit.Result.NOT_HANDLED;
+    }
+    for (var i = 0; i < allowed.length; i++) {
+        if (action.id.indexOf(allowed[i]) === 0) {
+            return polkit.Result.YES;
+        }
+    }
+    return polkit.Result.NOT_HANDLED;
+});
+EOF
+}
+
+known_apps() {
+	local file id
+	for file in "$APPS_DIR"/*.app; do
+		[ -f "$file" ] || continue
+		id="$(basename "$file" .app)"
+		[[ "$id" =~ $APP_PATTERN ]] || continue
+		{ [ -f "$POLICY_DIR/$id.conf" ] || is_dev_app "$id"; } && echo "$id"
+	done
+}
+
+live() {
+	[ -z "$ROOT" ] && [ -d /run/systemd/system ]
+}
+
+sync() {
+	local apps id changed=() permissions
+	apps=" $(known_apps | tr '\n' ' ') "
+	mkdir -p "$GRANTED_DIR"
+
+	for id in $apps; do
+		mapfile -t permissions < <(granted_permissions "$id")
+		ensure_user "$id"
+		local dropin="$UNIT_DIR/slate-app@$id.service.d/50-permissions.conf"
+		local rule="$POLKIT_DIR/60-slate-app-$id.rules"
+		local touched=0
+		write_if_changed "$dropin" "$(unit_dropin "${permissions[@]}")" && touched=1
+		write_if_changed "$rule" "$(polkit_rule "$id" "${permissions[@]}")" && touched=1
+		printf '%s\n' "${permissions[*]}" > "$GRANTED_DIR/$id.permissions"
+		[ "$touched" = 1 ] && changed+=("$id")
+		"$SYSTEMCTL" enable "slate-app@$id.service" >/dev/null 2>&1
+	done
+
+	local dir stale=()
+	for dir in "$UNIT_DIR"/slate-app@*.service.d; do
+		[ -d "$dir" ] || continue
+		id="$(basename "$dir" .service.d)"
+		id="${id#slate-app@}"
+		[[ "$apps" == *" $id "* ]] && continue
+		rm -rf "$dir"
+		rm -f "$POLKIT_DIR/60-slate-app-$id.rules" "$GRANTED_DIR/$id.permissions"
+		"$SYSTEMCTL" disable "slate-app@$id.service" >/dev/null 2>&1
+		stale+=("$id")
+	done
+
+	if live; then
+		"$SYSTEMCTL" daemon-reload
+		for id in "${stale[@]}"; do
+			"$SYSTEMCTL" stop "slate-app@$id.service" >/dev/null 2>&1
+		done
+		for id in "${changed[@]}"; do
+			"$SYSTEMCTL" try-restart "slate-app@$id.service" >/dev/null 2>&1
+		done
+		for id in $apps; do
+			"$SYSTEMCTL" start --no-block "slate-app@$id.service" >/dev/null 2>&1
+		done
+	fi
+}
+
+case "${1:-}" in
+	sync) sync ;;
+	*)
+		echo "usage: $0 sync" >&2
+		exit 2
+		;;
+esac

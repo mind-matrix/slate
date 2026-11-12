@@ -73,6 +73,8 @@ check "the installed version is recorded" grep -q "^SLATE_VERSION=" "$ROOTFS/usr
 check "updates are verified with the Slate key" file_exists /usr/share/slate/update.pub
 check "the updater is installed" test -x "$ROOTFS/usr/lib/slate/slate-update"
 check "interrupted updates are recovered at boot" unit_enabled slate-update-recover.service
+check "app permissions are applied at boot" unit_enabled slate-apps-sync.service
+check "a hung service is stopped within 60 seconds" grep -qx "DefaultTimeoutStopSec=60s" "$ROOTFS/usr/lib/systemd/system.conf.d/50-slate-stop-timeout.conf"
 check "the updater can verify and download" installed minisign
 check "no stale shell copy in /usr/local" test ! -e "$ROOTFS/usr/local/bin/slate-shell"
 case "$VARIANT" in

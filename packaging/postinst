@@ -3,6 +3,9 @@ set -e
 
 if [ "$1" = configure ]; then
     systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl enable slate-shell.service slate-update-recover.service >/dev/null 2>&1 || true
+    systemctl enable slate-shell.service slate-update-recover.service slate-apps-sync.service >/dev/null 2>&1 || true
     systemctl disable getty@tty1.service >/dev/null 2>&1 || true
+fi
+if [ "$1" = configure ] || [ "$1" = triggered ]; then
+    /usr/lib/slate/slate-apps sync || true
 fi

@@ -1,0 +1,10 @@
+[Unit]
+Description=Apply Slate app permissions
+Before=slate-shell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/slate/slate-apps sync
+
+[Install]
+WantedBy=multi-user.target
