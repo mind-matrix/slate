@@ -9,13 +9,14 @@ fi
 SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PACKAGING="$SOURCE_DIR/packaging"
 BINARY="$1"
+SYSTEM_BINARY="$(dirname "$BINARY")/slate-system"
 OUT_DIR="$2"
 VERSION="$(cat "$SOURCE_DIR/VERSION")"
 COMMIT="${SLATE_COMMIT:-$(git -c safe.directory='*' -C "$SOURCE_DIR" rev-parse --short HEAD)}"
 PUBLIC_KEY="${SLATE_UPDATE_PUBKEY:-$PACKAGING/update.pub}"
 NOTES="$SOURCE_DIR/releases/$VERSION.md"
 
-for required in "$BINARY" "$PUBLIC_KEY" "$NOTES"; do
+for required in "$BINARY" "$SYSTEM_BINARY" "$PUBLIC_KEY" "$NOTES"; do
 	if [ ! -f "$required" ]; then
 		echo "missing $required" >&2
 		exit 1
@@ -28,10 +29,11 @@ trap 'rm -rf "$ROOT"' EXIT
 cp -a "$PACKAGING/root/." "$ROOT/"
 find "$ROOT" -type f -exec chmod 644 {} +
 install -D -m 755 "$BINARY" "$ROOT/usr/bin/slate-shell"
+install -D -m 755 "$SYSTEM_BINARY" "$ROOT/usr/lib/slate/slate-system"
 install -D -m 644 "$PUBLIC_KEY" "$ROOT/usr/share/slate/update.pub"
 sed -n 's/^- //p' "$NOTES" > "$ROOT/usr/share/slate/notes"
 printf 'SLATE_VERSION=%s\nSLATE_COMMIT=%s\nSLATE_CHANNEL=release\n' "$VERSION" "$COMMIT" > "$ROOT/usr/lib/slate/release"
-chmod 755 "$ROOT/usr/lib/slate/slate-update" "$ROOT/usr/lib/slate/slate-apps" "$ROOT/usr/lib/slate/slate-touch"
+chmod 755 "$ROOT/usr/lib/slate/slate-update" "$ROOT/usr/lib/slate/slate-apps" "$ROOT/usr/lib/slate/slate-touch" "$ROOT/usr/lib/slate/slate-pipewire-conf"
 find "$ROOT" -type d -exec chmod 755 {} +
 
 mkdir -p "$ROOT/DEBIAN"

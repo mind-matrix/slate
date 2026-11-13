@@ -5,7 +5,7 @@ SOURCE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORK_DIR="${SLATE_BUILD_ROOT:-${HOME}/slate-build}/shell"
 SYNCED_DIR="${WORK_DIR}/src"
 BUILD_IMAGE="slate-shell-build"
-SCREENS=(desktop drawer drawer_empty settings wifi wifi_join bluetooth display sound power terminal about diagnostics datetime timezone_picker software_update apps app_detail clock clock_timers clock_stopwatch clock_reminders alarm_edit reminder_edit alarm_ring timer_done reminder_banner)
+SCREENS=(desktop drawer drawer_empty settings wifi wifi_join bluetooth display sound power terminal about diagnostics datetime timezone_picker software_update apps app_detail voice_assistant app_bar clock clock_timers clock_stopwatch clock_reminders alarm_edit reminder_edit alarm_ring timer_done reminder_banner)
 
 usage() {
 	echo "usage: $0 sim|run|snapshot|pi" >&2
@@ -36,7 +36,7 @@ take_snapshots() {
 build_pi() {
 	docker build --platform linux/arm64 -q -t "${BUILD_IMAGE}" "${SYNCED_DIR}" > /dev/null
 	docker run --rm --platform linux/arm64 -u "$(id -u):$(id -g)" -v "${WORK_DIR}:/work" -w /work "${BUILD_IMAGE}" \
-		sh -c "cmake -S src -B pi -DSLATE_BACKEND=drm > /dev/null && cmake --build pi -j2 && ctest --test-dir pi --output-on-failure"
+		sh -c "cmake -S src -B pi -DSLATE_BACKEND=wlr > /dev/null && cmake --build pi -j2 && ctest --test-dir pi --output-on-failure"
 	echo "${WORK_DIR}/pi/slate-shell"
 }
 

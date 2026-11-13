@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "platform/windows.h"
 #include "components/button.h"
 #include "components/keyboard.h"
 #include "platform/platform.h"
@@ -224,7 +225,7 @@ void wifi_join_open(const net_ap_t *ap, wifi_join_cb_t on_join)
     sheet.ap = *ap;
     sheet.on_join = on_join;
 
-    sheet.scrim = sui_box_create(lv_layer_top());
+    sheet.scrim = sui_box_create(sui_layer_system());
     lv_obj_add_flag(sheet.scrim, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(sheet.scrim, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(sheet.scrim, lv_color_hex(SCRIM_COLOR), 0);

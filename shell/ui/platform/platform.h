@@ -29,6 +29,8 @@ enum {
 
 typedef void (*sui_fd_cb_t)(int fd, void *user);
 typedef void (*sui_key_cb_t)(uint32_t key, uint32_t mods, void *user);
+typedef bool (*sui_wake_cb_t)(void);
+typedef void (*sui_hook_t)(void);
 
 lv_display_t *sui_platform_init(void);
 lv_display_t *sui_headless_init(void);
@@ -37,6 +39,12 @@ bool sui_watch_fd(int fd, sui_fd_cb_t cb, void *user);
 void sui_unwatch_fd(int fd);
 void sui_set_key_handler(sui_key_cb_t cb, void *user);
 void sui_key_dispatch(uint32_t key, uint32_t mods);
+/* The idle screen registers a handler that wakes the display. Input that only wakes the
+ * screen is not delivered anywhere else. */
+void sui_set_wake_handler(sui_wake_cb_t cb);
+bool sui_wake(void);
+/* Runs before the main loop waits, so the compositor can flush its clients. */
+void sui_set_poll_hook(sui_hook_t hook);
 void sui_run(void);
 void sui_run_for(uint32_t ms);
 void sui_quit(void);

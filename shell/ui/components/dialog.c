@@ -1,5 +1,6 @@
 #include "components/dialog.h"
 
+#include "platform/windows.h"
 #include "theme/theme.h"
 
 #define DIALOG_W 600
@@ -10,7 +11,7 @@
 
 lv_obj_t *sui_dialog_create(const char *title, const char *body)
 {
-    lv_obj_t *scrim = sui_box_create(lv_layer_top());
+    lv_obj_t *scrim = sui_box_create(sui_layer_system());
     lv_obj_add_flag(scrim, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(scrim, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(scrim, lv_color_hex(SCRIM_COLOR), 0);

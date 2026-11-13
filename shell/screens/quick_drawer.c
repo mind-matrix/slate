@@ -1,9 +1,11 @@
 #include "quick_drawer.h"
 
 #include <time.h>
+#include "platform/windows.h"
 #include "audio.h"
 #include "backlight.h"
 #include "bluetooth.h"
+#include "voice_assistant.h"
 #include "bt.h"
 #include "clock_app.h"
 #include "components/icon.h"
@@ -224,6 +226,7 @@ static void open_owner(notify_owner_t owner)
         [NOTIFY_CLOCK] = &clock_app_screen,
         [NOTIFY_UPDATE] = &software_update_screen,
         [NOTIFY_BLUETOOTH] = &bluetooth_screen,
+        [NOTIFY_ASSISTANT] = &voice_assistant_screen,
     };
     if (owner < NOTIFY_OWNER_COUNT)
         open_screen(screens[owner]);
@@ -382,7 +385,7 @@ void quick_drawer_open(void)
     }
     notify_mark_seen();
 
-    drawer.scrim = sui_box_create(lv_layer_top());
+    drawer.scrim = sui_box_create(sui_layer_system());
     lv_obj_add_flag(drawer.scrim, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(drawer.scrim, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(drawer.scrim, lv_color_hex(SCRIM_COLOR), 0);

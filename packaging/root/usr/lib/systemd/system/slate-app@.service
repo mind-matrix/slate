@@ -1,6 +1,6 @@
 [Unit]
 Description=Slate app %i
-After=slate-apps-sync.service network.target
+After=slate-apps-sync.service slate-shell.service network.target
 ConditionPathExists=/usr/lib/slate-apps/%i/run
 
 [Service]

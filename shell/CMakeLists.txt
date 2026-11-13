@@ -7,8 +7,8 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
-set(SLATE_BACKEND "sdl" CACHE STRING "Display backend: sdl or drm")
-set_property(CACHE SLATE_BACKEND PROPERTY STRINGS sdl drm)
+set(SLATE_BACKEND "sdl" CACHE STRING "Display backend: sdl (simulator) or wlr (the device, as a Wayland compositor)")
+set_property(CACHE SLATE_BACKEND PROPERTY STRINGS sdl wlr)
 
 include(FetchContent)
 set(LV_CONF_PATH ${CMAKE_CURRENT_SOURCE_DIR}/lv_conf.h CACHE FILEPATH "" FORCE)
@@ -26,7 +26,7 @@ if(SLATE_BACKEND STREQUAL "sdl")
     pkg_check_modules(SDL2 REQUIRED IMPORTED_TARGET sdl2)
     target_compile_definitions(lvgl PUBLIC LV_USE_SDL=1)
     target_link_libraries(lvgl PUBLIC PkgConfig::SDL2)
-    set(SLATE_BACKEND_SOURCES ui/platform/sdl.c)
+    set(SLATE_BACKEND_SOURCES ui/platform/sdl.c ui/platform/windows_stub.c)
     set(SLATE_SYSTEM_SOURCES
         services/fake/net.c
         services/fake/bt.c
@@ -36,10 +36,30 @@ if(SLATE_BACKEND STREQUAL "sdl")
         services/fake/update.c
         services/fake/timesync.c
         services/fake/chime.c
-        services/fake/apps.c)
-elseif(SLATE_BACKEND STREQUAL "drm")
-    pkg_check_modules(DRM REQUIRED IMPORTED_TARGET libdrm)
-    set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c ui/platform/keyboard.c)
+        services/fake/apps.c
+        services/fake/voice.c)
+elseif(SLATE_BACKEND STREQUAL "wlr")
+    pkg_check_modules(WLR REQUIRED IMPORTED_TARGET wlroots-0.18 wayland-server xkbcommon pixman-1 libdrm)
+    pkg_get_variable(WAYLAND_PROTOCOLS wayland-protocols pkgdatadir)
+    pkg_get_variable(WAYLAND_SCANNER wayland-scanner wayland_scanner)
+    set(PROTOCOL_DIR ${CMAKE_CURRENT_BINARY_DIR}/protocols)
+    file(MAKE_DIRECTORY ${PROTOCOL_DIR})
+    add_custom_command(OUTPUT ${PROTOCOL_DIR}/xdg-shell-protocol.h
+        COMMAND ${WAYLAND_SCANNER} server-header ${WAYLAND_PROTOCOLS}/stable/xdg-shell/xdg-shell.xml ${PROTOCOL_DIR}/xdg-shell-protocol.h)
+    add_custom_command(OUTPUT ${PROTOCOL_DIR}/wlr-layer-shell-unstable-v1-protocol.h
+        COMMAND ${WAYLAND_SCANNER} server-header ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml
+            ${PROTOCOL_DIR}/wlr-layer-shell-unstable-v1-protocol.h
+        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/protocols/wlr-layer-shell-unstable-v1.xml)
+    set(SLATE_BACKEND_SOURCES
+        compositor/server.c
+        compositor/windows.c
+        compositor/overlays.c
+        compositor/input.c
+        ui/platform/keyboard.c
+        ${PROTOCOL_DIR}/xdg-shell-protocol.h
+        ${PROTOCOL_DIR}/wlr-layer-shell-unstable-v1-protocol.h)
+    set(SLATE_BACKEND_INCLUDES ${PROTOCOL_DIR})
+    set(SLATE_BACKEND_DEFINES WLR_USE_UNSTABLE)
     set(SLATE_SYSTEM_SOURCES
         services/net_nm.c
         services/bt_bluez.c
@@ -49,11 +69,20 @@ elseif(SLATE_BACKEND STREQUAL "drm")
         services/update_systemd.c
         services/timesync.c
         services/chime_pwplay.c
-        services/apps_system.c)
-    set(SLATE_BACKEND_LIBS PkgConfig::DRM)
+        services/apps_system.c
+        services/voice_system.c)
+    set(SLATE_BACKEND_LIBS PkgConfig::WLR)
 else()
-    message(FATAL_ERROR "SLATE_BACKEND must be sdl or drm")
+    message(FATAL_ERROR "SLATE_BACKEND must be sdl or wlr")
 endif()
+
+add_library(slatecore STATIC
+    compositor/access.c
+    compositor/geometry.c
+    system/keystore.c
+    system/assistant.c)
+target_include_directories(slatecore PUBLIC compositor system)
+target_compile_options(slatecore PRIVATE -Wall -Wextra)
 
 add_library(slateui STATIC
     ui/platform/platform.c
@@ -85,8 +114,9 @@ add_library(slateui STATIC
     ui/components/stat_card.c
     ui/components/switch.c
     ui/components/wallpaper.c)
-target_include_directories(slateui PUBLIC ui)
-target_link_libraries(slateui PUBLIC lvgl m ${SLATE_BACKEND_LIBS})
+target_include_directories(slateui PUBLIC ui PRIVATE ${SLATE_BACKEND_INCLUDES})
+target_compile_definitions(slateui PRIVATE ${SLATE_BACKEND_DEFINES})
+target_link_libraries(slateui PUBLIC lvgl m slatecore ${SLATE_BACKEND_LIBS})
 target_compile_options(slateui PRIVATE -Wall -Wextra)
 
 add_library(slateservices STATIC
@@ -104,11 +134,12 @@ add_library(slateservices STATIC
     services/clock.c
     services/chime.c
     services/apps.c
+    services/voice.c
     ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
 pkg_check_modules(VTERM REQUIRED IMPORTED_TARGET vterm)
-target_link_libraries(slateservices PUBLIC PkgConfig::SYSTEMD)
+target_link_libraries(slateservices PUBLIC slatecore PkgConfig::SYSTEMD)
 target_compile_options(slateservices PRIVATE -Wall -Wextra)
 
 add_library(slatescreens STATIC
@@ -134,7 +165,8 @@ add_library(slatescreens STATIC
     screens/clock_sheets.c
     screens/clock_alerts.c
     screens/apps_screen.c
-    screens/app_detail.c)
+    screens/app_detail.c
+    screens/voice_assistant.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)
@@ -145,6 +177,13 @@ target_compile_options(slate-shell PRIVATE -Wall -Wextra)
 
 add_executable(slate-snapshot tools/snapshot.c)
 target_link_libraries(slate-snapshot PRIVATE slatescreens)
+
+if(SLATE_BACKEND STREQUAL "wlr")
+    pkg_check_modules(SODIUM REQUIRED IMPORTED_TARGET libsodium)
+    add_executable(slate-system system/main.c system/vault.c)
+    target_link_libraries(slate-system PRIVATE slatecore PkgConfig::SYSTEMD PkgConfig::SODIUM)
+    target_compile_options(slate-system PRIVATE -Wall -Wextra)
+endif()
 
 enable_testing()
 add_subdirectory(tests)

@@ -77,6 +77,9 @@ check "app permissions are applied at boot" unit_enabled slate-apps-sync.service
 check "a hung service is stopped within 60 seconds" grep -qx "DefaultTimeoutStopSec=60s" "$ROOTFS/usr/lib/systemd/system.conf.d/50-slate-stop-timeout.conf"
 check "the updater can verify and download" installed minisign
 check "no stale shell copy in /usr/local" test ! -e "$ROOTFS/usr/local/bin/slate-shell"
+check "the shell's compositor library is installed" installed libwlroots-0.18
+check "apps reach the display through a group" grep -q "^slate-display:" "$ROOTFS/etc/group"
+check "the touchscreen is retried at boot" unit_enabled slate-touch.service
 case "$VARIANT" in
 	dev)
 		check "slate can redeploy the shell" owned_by slate /usr/bin/slate-shell

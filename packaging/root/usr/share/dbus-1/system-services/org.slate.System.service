@@ -1,0 +1,5 @@
+[D-BUS Service]
+Name=org.slate.System
+Exec=/bin/false
+User=slate-system
+SystemdService=slate-system.service

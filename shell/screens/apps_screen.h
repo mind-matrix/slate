@@ -10,5 +10,7 @@ extern const sui_screen_def_t app_detail_screen;
 
 void apps_summary(char *out, size_t len);
 lv_obj_t *apps_badge_create(lv_obj_t *parent, bool dev);
+/* Brings the app's window to the front, starting the app first if it has no window yet. */
+void apps_open(const char *id);
 
 #endif

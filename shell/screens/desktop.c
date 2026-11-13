@@ -2,6 +2,7 @@
 
 #include <sys/stat.h>
 #include "apps.h"
+#include "apps_screen.h"
 #include "components/app_logo.h"
 #include "about.h"
 #include "clock_app.h"
@@ -47,7 +48,7 @@ static void open_app(lv_event_t *e)
 static void open_installed(lv_event_t *e)
 {
     const app_t *app = lv_event_get_user_data(e);
-    apps_start(app->id);
+    apps_open(app->id);
 }
 
 static void show_tiles(void)

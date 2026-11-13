@@ -92,6 +92,10 @@ policy hello "gui overlay network"
 run sync
 check "display permissions add the display group once" grep -qx "SupplementaryGroups=slate-display" "$ROOT/etc/systemd/system/slate-app@hello.service.d/50-permissions.conf"
 check "a missing group is created" logged "groupadd slate-display"
+check "display unit lines shared by gui and overlay are written once" \
+	test "$(grep -c '^RuntimeDirectory=slate-apps/%i$' "$ROOT/etc/systemd/system/slate-app@hello.service.d/50-permissions.conf")" = 1
+check "display permissions point the app at the shell's Wayland socket" \
+	grep -q "WAYLAND_DISPLAY=/run/slate-display/wayland-0" "$ROOT/etc/systemd/system/slate-app@hello.service.d/50-permissions.conf"
 check "an app without polkit permissions gets no polkit rule" test ! -e "$ROOT/etc/polkit-1/rules.d/60-slate-app-hello.rules"
 
 reset_root

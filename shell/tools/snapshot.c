@@ -6,6 +6,7 @@
 #include "about.h"
 #include "apps.h"
 #include "apps_screen.h"
+#include "voice_assistant.h"
 #include "bluetooth.h"
 #include "clock.h"
 #include "clock_alerts.h"
@@ -35,7 +36,7 @@
 static const sui_screen_def_t *const screens[] = {
     &desktop_screen,  &settings_screen, &about_screen, &diagnostics_screen, &datetime_screen,
     &timezone_picker_screen, &wifi_screen, &bluetooth_screen, &display_screen, &sound_screen,
-    &power_screen, &terminal_screen, &software_update_screen, &clock_app_screen, &apps_screen,
+    &power_screen, &terminal_screen, &software_update_screen, &clock_app_screen, &apps_screen, &voice_assistant_screen,
 };
 
 static const sui_screen_def_t *find_screen(const char *name)
@@ -185,7 +186,8 @@ int main(int argc, char **argv)
     size_t tab = 0;
     bool clock = is_clock_tab(name, &tab) || sheet;
     bool detail = strcmp(name, "app_detail") == 0;
-    const sui_screen_def_t *screen = drawer   ? &desktop_screen
+    bool app_bar = strcmp(name, "app_bar") == 0;
+    const sui_screen_def_t *screen = drawer || app_bar ? &desktop_screen
                                      : detail ? &app_detail_screen
                                      : join   ? &wifi_screen
                                      : clock ? &clock_app_screen
@@ -218,6 +220,10 @@ int main(int argc, char **argv)
         sui_nav_push(screen, args);
     sui_status_bar_create(lv_layer_top(), quick_drawer_open);
     open_overlay(name);
+    if (strcmp(name, "app_bar") == 0) {
+        sui_status_bar_set_app(true, NULL, NULL);
+        sui_status_bar_set_mic("Marvin", false, NULL);
+    }
 
     sui_run_for(SETTLE_MS);
     lv_refr_now(NULL);

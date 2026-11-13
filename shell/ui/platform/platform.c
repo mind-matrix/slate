@@ -17,6 +17,8 @@ static int watch_count;
 static bool running;
 static sui_key_cb_t key_cb;
 static void *key_user;
+static sui_wake_cb_t wake_cb;
+static sui_hook_t poll_hook;
 
 static uint32_t tick_ms(void)
 {
@@ -78,11 +80,28 @@ void sui_key_dispatch(uint32_t key, uint32_t mods)
         key_cb(key, mods, key_user);
 }
 
+void sui_set_wake_handler(sui_wake_cb_t cb)
+{
+    wake_cb = cb;
+}
+
+bool sui_wake(void)
+{
+    return wake_cb && wake_cb();
+}
+
+void sui_set_poll_hook(sui_hook_t hook)
+{
+    poll_hook = hook;
+}
+
 static void step(void)
 {
     uint32_t wait = lv_timer_handler();
     if (wait == LV_NO_TIMER_READY || wait > MAX_WAIT_MS)
         wait = MAX_WAIT_MS;
+    if (poll_hook)
+        poll_hook();
     if (poll(fds, (nfds_t)watch_count, (int)wait) <= 0)
         return;
     for (int i = 0; i < watch_count; i++)

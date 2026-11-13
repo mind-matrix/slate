@@ -21,6 +21,7 @@ static const char *const owner_labels[NOTIFY_OWNER_COUNT] = {
     [NOTIFY_CLOCK] = "Clock",
     [NOTIFY_UPDATE] = "Software update",
     [NOTIFY_BLUETOOTH] = "Bluetooth",
+    [NOTIFY_ASSISTANT] = "Voice assistant",
 };
 
 static ptrdiff_t find(const notify_list_t *l, notify_owner_t owner, const char *key)

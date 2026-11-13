@@ -1,4 +1,6 @@
 #include "audio.h"
+#include "platform/windows.h"
+#include "voice_assistant.h"
 #include "bluetooth.h"
 #include "bt.h"
 #include "bus.h"
@@ -50,6 +52,12 @@ static void poll_alerts(lv_timer_t *timer)
     update_alerts();
 }
 
+static void update_front(void *user)
+{
+    (void)user;
+    sui_status_bar_set_app(sui_windows_front() != NULL, sui_windows_back, sui_windows_home);
+}
+
 static void apply_levels(lv_timer_t *timer)
 {
     if (audio_apply_levels())
@@ -64,7 +72,9 @@ int main(void)
     sui_theme_init();
     notify_load();
     sui_nav_init(&desktop_screen, NULL);
-    sui_status_bar_create(lv_layer_top(), quick_drawer_open);
+    sui_status_bar_create(sui_layer_system(), quick_drawer_open);
+    sui_windows_on_change(update_front, NULL);
+    update_front(NULL);
 
     sd_bus *bus = bus_system();
     if (bus)
@@ -76,6 +86,7 @@ int main(void)
     idle_start();
     software_update_start_auto_check();
     clock_alerts_start();
+    voice_assistant_start();
     notify_on_change(update_alerts);
     poll_alerts(lv_timer_create(poll_alerts, ALERT_POLL_MS, NULL));
     apply_levels(lv_timer_create(apply_levels, LEVELS_RETRY_MS, NULL));

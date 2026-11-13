@@ -5,6 +5,7 @@
 #include "apps.h"
 #include "components/app_logo.h"
 #include "components/header.h"
+#include "platform/windows.h"
 #include "theme/theme.h"
 
 #define ROW_H 96
@@ -41,6 +42,14 @@ lv_obj_t *apps_badge_create(lv_obj_t *parent, bool dev)
                                 dev ? SUI_COLOR_WARNING_FILL : SUI_COLOR_TEXT_MUTED);
     lv_obj_center(label);
     return badge;
+}
+
+void apps_open(const char *id)
+{
+    if (sui_windows_show(id))
+        return;
+    sui_windows_expect(id);
+    apps_start(id);
 }
 
 static void open_app(lv_event_t *e)

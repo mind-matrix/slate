@@ -24,7 +24,7 @@ jobs:
         run: |
           docker build -t slate-shell-build shell
           docker run --rm -u "$(id -u):$(id -g)" -v "$PWD:/work" -w /work slate-shell-build \
-            sh -c "cmake -S shell -B build -DSLATE_BACKEND=drm > /dev/null && cmake --build build -j4 && ctest --test-dir build --output-on-failure"
+            sh -c "cmake -S shell -B build -DSLATE_BACKEND=wlr > /dev/null && cmake --build build -j4 && ctest --test-dir build --output-on-failure"
 
       - name: Test the updater and app permissions
         run: |
@@ -33,6 +33,7 @@ jobs:
           tests/test-slate-update.sh
           tests/test-slate-apps.sh
           tests/test-slate-touch.sh
+          tests/test-slate-pipewire.sh
 
       - name: Build the package and manifest
         run: |

@@ -60,7 +60,7 @@ static void show_status(void)
 static void on_open(lv_event_t *e)
 {
     (void)e;
-    apps_start(view.app.id);
+    apps_open(view.app.id);
     show_status();
 }
 

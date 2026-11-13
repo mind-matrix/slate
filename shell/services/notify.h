@@ -16,6 +16,7 @@ typedef enum {
     NOTIFY_CLOCK,
     NOTIFY_UPDATE,
     NOTIFY_BLUETOOTH,
+    NOTIFY_ASSISTANT,
     NOTIFY_OWNER_COUNT,
 } notify_owner_t;
 
@@ -25,6 +26,7 @@ typedef enum {
     NOTIFY_ICON_REMINDER,
     NOTIFY_ICON_UPDATE,
     NOTIFY_ICON_BLUETOOTH,
+    NOTIFY_ICON_ASSISTANT,
     NOTIFY_ICON_COUNT,
 } notify_icon_t;
 

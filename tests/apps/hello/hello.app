@@ -1,3 +1,3 @@
 name=Hello
-permissions=network
+permissions=network gui overlay
 registration=none

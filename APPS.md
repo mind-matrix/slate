@@ -72,6 +72,48 @@ asks for it in its `.app` file **and** Slate grants it in the app's policy. Ever
 - When stopped, it gets SIGTERM and **60 seconds** to exit. After that, it and everything it started are killed.
   An app cannot extend this.
 
+## Windows and overlays
+
+Slate's shell is the Wayland compositor. An app with `gui` or `overlay` finds it through `WAYLAND_DISPLAY`
+(`/run/slate-display/wayland-0`) and gets its own `XDG_RUNTIME_DIR`, so any toolkit with a Wayland backend works
+(GTK, Qt, SDL, Flutter, WPE, LVGL). Apps without either permission can't connect. The GPU's render node is
+available for OpenGL ES.
+
+Slate only offers an app the Wayland globals its permissions allow: `xdg_wm_base` needs `gui`, the layer shell
+(`zwlr_layer_shell_v1`) needs `overlay`, and the core globals (`wl_compositor`, `wl_shm`, `wl_seat`, `wl_output`,
+`linux-dmabuf`, `xdg_activation_v1`, `wp_viewporter`) need one of the two. Input is touch (`wl_touch`), plus a
+keyboard when one is attached.
+
+**Full-screen windows (`gui`).**
+
+- Every `xdg_toplevel` is sized 1280 × 672: the whole screen below Slate's status bar. Draw at the size you're
+  configured with.
+- A window stays hidden until the app is opened: from its desktop tile, from Open in Settings › Apps, or with an
+  activation token from Slate. Mapping a window, or asking `xdg_activation_v1` to activate it with a token the app
+  made itself, never brings it to the front.
+- While an app is open, the status bar shows Slate's **Back** and **Home**.
+  - **Back** sends your toplevel `close`. Treat it as "go back": if you have a previous screen, go to it and keep
+    the window. At your first screen, unmap the window (commit a null buffer) and keep running. Slate then shows
+    the desktop.
+  - **Home** hides your window and shows the desktop. Your app keeps running and isn't told.
+  - When the user opens your app again and your window is unmapped, Slate sends it a configure with the
+    `activated` state. Map the window again when you get it.
+  - Don't destroy your toplevel on `close` and keep running without a window: Slate has no way to ask for a new
+    one. If your toolkit quits when its last window closes, that is fine too; opening the app starts it again.
+- Slate may hand an app an activation token, for example with Setup or Logout on the Voice assistant screen. Pass
+  it to `xdg_activation_v1.activate` with your window's surface to come to the front. Each token works once, for
+  the app it was issued to, and expires after 30 seconds.
+
+**Overlays (`overlay`).**
+
+- Create layer surfaces with `zwlr_layer_shell_v1`. Whatever layer you ask for, they are drawn above apps and the
+  desktop and below the status bar, the drawer and system alerts. Anchors, size and margins work as usual on the
+  1280 × 720 screen.
+- Touches inside an overlay's input region go to it. A tap anywhere outside every overlay **closes all of them**:
+  each gets `closed`, and that tap goes nowhere else. Destroy the surface when you get `closed`, and create a new one
+  when you need it again.
+- Slate's microphone badge doesn't depend on overlays: it shows whenever an assistant has the mic open.
+
 ## Releases
 
 Each GitHub release of the app's repository carries three files:

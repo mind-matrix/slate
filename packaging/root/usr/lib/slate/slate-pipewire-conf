@@ -1,0 +1,23 @@
+#!/bin/sh
+# Writes /etc/pipewire/pipewire.conf: Debian's pipewire.conf with Slate's assistant socket
+# added. Assistants (apps with the audio permission) connect through it as restricted clients;
+# WirePlumber's slate/assistant-gate.lua decides what they may use. PipeWire can't add a socket
+# from a drop-in, so this regenerates the whole file whenever PipeWire's copy changes. If the
+# lines it replaces have moved, it leaves the current file alone rather than break audio.
+set -eu
+
+SOURCE="${SLATE_PIPEWIRE_SOURCE:-/usr/share/pipewire/pipewire.conf}"
+TARGET="${SLATE_PIPEWIRE_TARGET:-/etc/pipewire/pipewire.conf}"
+SOCKET=/run/slate-audio/pipewire-0
+
+[ -f "$SOURCE" ] || exit 0
+mkdir -p "$(dirname "$TARGET")"
+sed -e 's|^\( *\)#sockets = \[ { name = "pipewire-0" }, { name = "pipewire-0-manager" } \]$|\1sockets = [ { name = "pipewire-0" }, { name = "pipewire-0-manager" }, { name = "'"$SOCKET"'" mode = "0660" } ]|' \
+	-e 's|^\( *\)#access.socket = { pipewire-0 = "default", pipewire-0-manager = "unrestricted" }$|\1access.socket = { pipewire-0 = "default", pipewire-0-manager = "unrestricted", "'"$SOCKET"'" = "restricted" }|' \
+	"$SOURCE" > "$TARGET.new"
+if [ "$(grep -c "$SOCKET" "$TARGET.new")" != 2 ]; then
+	rm -f "$TARGET.new"
+	echo "slate-pipewire-conf: $SOURCE has changed shape; the assistant socket was not added" >&2
+	exit 0
+fi
+mv -f "$TARGET.new" "$TARGET"

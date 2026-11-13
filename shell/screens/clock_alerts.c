@@ -2,6 +2,7 @@
 
 #include <stdio.h>
 #include <time.h>
+#include "platform/windows.h"
 #include "chime.h"
 #include "clock.h"
 #include "clock_app.h"
@@ -186,7 +187,7 @@ static void pulse(void *obj, int32_t value)
 static void build_overlay(const char *kicker, const char *big, const char *sub, const char *secondary,
                           sui_glyph_t glyph)
 {
-    lv_obj_t *overlay = alerts.overlay = sui_box_create(lv_layer_top());
+    lv_obj_t *overlay = alerts.overlay = sui_box_create(sui_layer_system());
     lv_obj_add_flag(overlay, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(overlay, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(overlay, lv_color_hex(SUI_COLOR_BG), 0);
@@ -326,7 +327,7 @@ static void on_banner_done(lv_event_t *e)
 static void show_banner(const clock_reminder_t *r)
 {
     hide_banner();
-    lv_obj_t *banner = alerts.banner = sui_box_create(lv_layer_top());
+    lv_obj_t *banner = alerts.banner = sui_box_create(sui_layer_system());
     lv_obj_add_flag(banner, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(banner, BANNER_W, LV_SIZE_CONTENT);
     lv_obj_align(banner, LV_ALIGN_TOP_MID, 0, BANNER_TOP);

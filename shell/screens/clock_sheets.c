@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "platform/windows.h"
 #include "clock.h"
 #include "clock_alerts.h"
 #include "components/button.h"
@@ -427,7 +428,7 @@ static lv_obj_t *add_delete(lv_obj_t *parent, const char *text)
 
 static void open_frame(const char *title)
 {
-    sheet.scrim = sui_box_create(lv_layer_top());
+    sheet.scrim = sui_box_create(sui_layer_system());
     lv_obj_add_flag(sheet.scrim, LV_OBJ_FLAG_CLICKABLE);
     lv_obj_set_size(sheet.scrim, LV_PCT(100), LV_PCT(100));
     lv_obj_set_style_bg_color(sheet.scrim, lv_color_hex(SCRIM_COLOR), 0);

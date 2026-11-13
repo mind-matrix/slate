@@ -4,6 +4,7 @@
 #include <time.h>
 #include "about.h"
 #include "apps_screen.h"
+#include "voice_assistant.h"
 #include "bluetooth.h"
 #include "components/header.h"
 #include "components/list.h"
@@ -46,6 +47,8 @@ static const entry_t entries[] = {
     { { SUI_VECTOR(SUI_ICON_CLOCK), SUI_COLOR_CAT_SYSTEM, "Date & time", "", SUI_TRAILING_CHEVRON }, &datetime_screen,
       datetime_summary },
     { { SUI_SYMBOL(LV_SYMBOL_LIST), SUI_COLOR_CAT_WIFI, "Apps", "", SUI_TRAILING_CHEVRON }, &apps_screen, apps_summary },
+    { { SUI_VECTOR(SUI_ICON_MIC), SUI_COLOR_CAT_BLUETOOTH, "Voice assistant", "", SUI_TRAILING_CHEVRON },
+      &voice_assistant_screen, voice_assistant_summary },
     { { SUI_VECTOR(SUI_ICON_INFO), SUI_COLOR_CAT_SYSTEM, "About", "Build, device, diagnostics", SUI_TRAILING_CHEVRON },
       &about_screen, NULL },
 };

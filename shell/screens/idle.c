@@ -2,6 +2,7 @@
 
 #include "backlight.h"
 #include "lvgl.h"
+#include "platform/platform.h"
 #include "prefs.h"
 
 #define SETTING "screen_off_seconds"
@@ -48,6 +49,14 @@ static void wake_up(void)
     idle.catcher = NULL;
 }
 
+static bool wake_if_blank(void)
+{
+    if (!idle.catcher)
+        return false;
+    wake_up();
+    return true;
+}
+
 static void wake(lv_event_t *e)
 {
     (void)e;
@@ -85,5 +94,6 @@ void idle_start(void)
     if (backlight_get(&percent) && percent < BACKLIGHT_MIN_PERCENT)
         backlight_set(RESTORE_PERCENT);
     idle.timeout = prefs_get_int(SETTING, DEFAULT_SECONDS);
+    sui_set_wake_handler(wake_if_blank);
     lv_timer_create(check, CHECK_MS, NULL);
 }

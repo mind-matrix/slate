@@ -78,7 +78,8 @@ unit_dropin() {
 	done
 	printf '[Service]\n'
 	[ -n "${groups# }" ] && printf 'SupplementaryGroups=%s\n' "${groups# }"
-	printf '%s' "$lines" | sed '/^$/d'
+	# Permissions can share lines (gui and overlay both open the display); write each once.
+	printf '%s' "$lines" | sed '/^$/d' | awk '!seen[$0]++'
 }
 
 polkit_rule() {

@@ -5,8 +5,13 @@ Conflicts=getty@tty1.service
 
 [Service]
 User=slate
-SupplementaryGroups=video render input
+SupplementaryGroups=video render input slate-display
 Environment=XDG_RUNTIME_DIR=/run/user/1000
+# The shell is the Wayland compositor. Apps with gui or overlay reach it through this
+# directory, which the slate-display group can enter.
+RuntimeDirectory=slate-display
+RuntimeDirectoryMode=0750
+Environment=LIBSEAT_BACKEND=noop
 ExecStart=/usr/bin/slate-shell
 Restart=always
 RestartSec=1
