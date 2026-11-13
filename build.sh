@@ -47,6 +47,62 @@ build_package() {
 	install -D -m 644 "$package" "$SYNCED_DIR/stages/stage-slate/05-shell/files/slate.deb"
 }
 
+policy_value() {
+	sed -n "s/^$1=\(.*\)$/\1/p" "$2" | head -n 1
+}
+
+local_source_for() {
+	local name="SLATE_APP_SOURCE_${1//-/_}"
+	[ -f "$SYNCED_DIR/config/local.conf" ] || return 0
+	(set +u; . "$SYNCED_DIR/config/local.conf"; echo "${!name:-}")
+}
+
+local_source_ids() {
+	[ -f "$SYNCED_DIR/config/local.conf" ] || return 0
+	sed -n 's/^export SLATE_APP_SOURCE_\([a-z0-9_]*\)=.*/\1/p' "$SYNCED_DIR/config/local.conf" | tr _ -
+}
+
+fetch_release() {
+	local id="$1" policy="$2" out="$3" work feed file
+	work="$(mktemp -d)"
+	feed="https://github.com/$(policy_value repo "$policy")/releases/latest/download"
+	curl -fsSL --proto =https -o "$work/manifest.json" "$feed/manifest.json"
+	curl -fsSL --proto =https -o "$work/manifest.json.minisig" "$feed/manifest.json.minisig"
+	minisign -Vq -P "$(policy_value key "$policy")" -m "$work/manifest.json" -x "$work/manifest.json.minisig"
+	file="$(jq -er .package.file "$work/manifest.json")"
+	[[ "$file" == "slate-app-${id}_"*"_arm64.deb" ]]
+	curl -fsSL --proto =https -o "$work/$file" "$(jq -er .package.url "$work/manifest.json")"
+	echo "$(jq -er .package.sha256 "$work/manifest.json")  $work/$file" | sha256sum -c --quiet -
+	[ "$(dpkg-deb -f "$work/$file" Package)" = "slate-app-$id" ]
+	install -m 644 "$work/$file" "$out/"
+	rm -rf "$work"
+}
+
+build_local_app() {
+	local id="$1" source="$2" out="$3" deb
+	deb="$("$source/packaging/build-deb.sh" "$BUILD_ROOT/apps/$id" | tail -n 1)"
+	[ "$(dpkg-deb -f "$deb" Package)" = "slate-app-$id" ]
+	install -m 644 "$deb" "$out/"
+	echo "$id" >> "$out/dev-apps"
+}
+
+bundle_apps() {
+	local variant="$1" out="$SYNCED_DIR/stages/stage-slate/06-apps/files" policy id source
+	rm -f "$out"/*.deb "$out/dev-apps"
+	mkdir -p "$out"
+	for id in $(local_source_ids); do
+		[ "$variant" = dev ] || break
+		source="$(local_source_for "$id")"
+		[ -n "$source" ] && build_local_app "$id" "$source" "$out"
+	done
+	for policy in "$SOURCE_DIR"/packaging/root/usr/share/slate/app-policy/*.conf; do
+		[ -f "$policy" ] || continue
+		id="$(basename "$policy" .conf)"
+		grep -qx "$id" "$out/dev-apps" 2>/dev/null && continue
+		fetch_release "$id" "$policy" "$out"
+	done
+}
+
 copy_to_windows() {
 	local source target
 	source="$(wslpath -w "$1")"
@@ -80,6 +136,7 @@ main() {
 
 	sync_sources
 	build_package
+	bundle_apps "$variant"
 	prepare_pi_gen
 	for stage in $custom_stages; do
 		stage_paths="$stage_paths $SYNCED_DIR/stages/$stage"

@@ -1,0 +1,7 @@
+#!/bin/sh
+trap '[ -e "$HOME/ignore-term" ] || exit 0' TERM
+while :; do
+	date +%s > "$HOME/heartbeat"
+	sleep 5 &
+	wait $!
+done
