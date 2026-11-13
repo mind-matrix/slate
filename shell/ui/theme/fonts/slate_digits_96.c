@@ -1,7 +1,7 @@
 /*******************************************************************************
  * Size: 96 px
  * Bpp: 4
- * Opts: --no-compress --no-prefilter --bpp 4 --size 96 --font /home/sagni/slate-build/shell/sim/_deps/lvgl-src/scripts/built_in_font/Montserrat-Medium.ttf -r 0x20,0x2B,0x2D-0x2E,0x30-0x3A --format lvgl --force-fast-kern-format --lv-include lvgl.h -o ui/theme/fonts/slate_digits_96.c
+ * Opts: --no-compress --no-prefilter --bpp 4 --size 96 --font /home/sagni/slate-build/shell/sim/_deps/lvgl-src/scripts/built_in_font/Montserrat-Medium.ttf -r 0x20,0x2B,0x2D-0x2E,0x30-0x3A --format lvgl --force-fast-kern-format --lv-include lvgl.h -o /mnt/c/Users/sagni/workplace/slate/shell/ui/theme/fonts/slate_digits_96.c
  ******************************************************************************/
 
 #ifdef LV_LVGL_H_INCLUDE_SIMPLE

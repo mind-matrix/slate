@@ -4,6 +4,8 @@
 #include <time.h>
 
 #include "about.h"
+#include "apps.h"
+#include "apps_screen.h"
 #include "bluetooth.h"
 #include "clock.h"
 #include "clock_alerts.h"
@@ -33,7 +35,7 @@
 static const sui_screen_def_t *const screens[] = {
     &desktop_screen,  &settings_screen, &about_screen, &diagnostics_screen, &datetime_screen,
     &timezone_picker_screen, &wifi_screen, &bluetooth_screen, &display_screen, &sound_screen,
-    &power_screen, &terminal_screen, &software_update_screen, &clock_app_screen,
+    &power_screen, &terminal_screen, &software_update_screen, &clock_app_screen, &apps_screen,
 };
 
 static const sui_screen_def_t *find_screen(const char *name)
@@ -182,8 +184,10 @@ int main(int argc, char **argv)
     bool sheet = strcmp(name, "alarm_edit") == 0 || strcmp(name, "reminder_edit") == 0;
     size_t tab = 0;
     bool clock = is_clock_tab(name, &tab) || sheet;
-    const sui_screen_def_t *screen = drawer ? &desktop_screen
-                                     : join ? &wifi_screen
+    bool detail = strcmp(name, "app_detail") == 0;
+    const sui_screen_def_t *screen = drawer   ? &desktop_screen
+                                     : detail ? &app_detail_screen
+                                     : join   ? &wifi_screen
                                      : clock ? &clock_app_screen
                                              : find_screen(name);
     if (!screen) {
@@ -203,8 +207,15 @@ int main(int argc, char **argv)
     seed_alert(name);
     clock_app_select(strcmp(name, "reminder_edit") == 0 ? 3 : tab);
     sui_nav_init(&desktop_screen, NULL);
+    static app_t apps[APPS_MAX];
+    void *args = NULL;
+    if (detail) {
+        if (!apps_list(apps, APPS_MAX))
+            return 1;
+        args = &apps[0];
+    }
     if (screen != &desktop_screen)
-        sui_nav_push(screen, NULL);
+        sui_nav_push(screen, args);
     sui_status_bar_create(lv_layer_top(), quick_drawer_open);
     open_overlay(name);
 
