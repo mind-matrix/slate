@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <time.h>
 #include "about.h"
+#include "apps_screen.h"
 #include "bluetooth.h"
 #include "components/header.h"
 #include "components/list.h"
@@ -44,6 +45,7 @@ static const entry_t entries[] = {
       sound_summary },
     { { SUI_VECTOR(SUI_ICON_CLOCK), SUI_COLOR_CAT_SYSTEM, "Date & time", "", SUI_TRAILING_CHEVRON }, &datetime_screen,
       datetime_summary },
+    { { SUI_SYMBOL(LV_SYMBOL_LIST), SUI_COLOR_CAT_WIFI, "Apps", "", SUI_TRAILING_CHEVRON }, &apps_screen, apps_summary },
     { { SUI_VECTOR(SUI_ICON_INFO), SUI_COLOR_CAT_SYSTEM, "About", "Build, device, diagnostics", SUI_TRAILING_CHEVRON },
       &about_screen, NULL },
 };
@@ -62,6 +64,8 @@ static void create(lv_obj_t *screen, void *args)
 {
     (void)args;
     lv_obj_t *page = sui_page_create(screen, "Settings");
+    lv_obj_add_flag(page, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_set_scroll_dir(page, LV_DIR_VER);
     lv_obj_t *list = sui_list_create(page, SUI_CONTENT_W);
 
     for (size_t i = 0; i < ENTRY_COUNT; i++) {

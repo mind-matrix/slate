@@ -17,6 +17,12 @@
 #define LV_FONT_MONTSERRAT_16 1
 #define LV_FONT_DEFAULT &lv_font_montserrat_16
 
+#define LV_USE_LODEPNG 1
+#define LV_USE_FS_STDIO 1
+#define LV_FS_STDIO_LETTER 'A'
+#define LV_FS_STDIO_PATH ""
+#define LV_FS_STDIO_CACHE_SIZE 0
+
 #define LV_USE_LOG 1
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_LOG_PRINTF 1

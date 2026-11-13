@@ -35,7 +35,8 @@ if(SLATE_BACKEND STREQUAL "sdl")
         services/fake/power.c
         services/fake/update.c
         services/fake/timesync.c
-        services/fake/chime.c)
+        services/fake/chime.c
+        services/fake/apps.c)
 elseif(SLATE_BACKEND STREQUAL "drm")
     pkg_check_modules(DRM REQUIRED IMPORTED_TARGET libdrm)
     set(SLATE_BACKEND_SOURCES ui/platform/drm.c ui/platform/touch.c ui/platform/keyboard.c)
@@ -47,7 +48,8 @@ elseif(SLATE_BACKEND STREQUAL "drm")
         services/power_logind.c
         services/update_systemd.c
         services/timesync.c
-        services/chime_pwplay.c)
+        services/chime_pwplay.c
+        services/apps_system.c)
     set(SLATE_BACKEND_LIBS PkgConfig::DRM)
 else()
     message(FATAL_ERROR "SLATE_BACKEND must be sdl or drm")
@@ -69,6 +71,7 @@ add_library(slateui STATIC
     ui/nav/nav.c
     ui/components/status_bar.c
     ui/components/app_icon.c
+    ui/components/app_logo.c
     ui/components/button.c
     ui/components/dialog.c
     ui/components/header.c
@@ -100,6 +103,7 @@ add_library(slateservices STATIC
     services/notify.c
     services/clock.c
     services/chime.c
+    services/apps.c
     ${SLATE_SYSTEM_SOURCES})
 target_include_directories(slateservices PUBLIC services)
 pkg_check_modules(SYSTEMD REQUIRED IMPORTED_TARGET libsystemd)
@@ -128,7 +132,9 @@ add_library(slatescreens STATIC
     screens/notification_hub.c
     screens/clock_app.c
     screens/clock_sheets.c
-    screens/clock_alerts.c)
+    screens/clock_alerts.c
+    screens/apps_screen.c
+    screens/app_detail.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)

@@ -29,5 +29,6 @@ bool bus_variant_basic(sd_bus_message *m, char type, void *out);
 bool bus_variant_text(sd_bus_message *m, char type, char *out, size_t len);
 bool bus_variant_bytes(sd_bus_message *m, const void **bytes, size_t *count);
 bool bus_get_all(const char *service, const char *path, const char *iface, bus_entry_cb_t cb, void *user);
+bool bus_call_unit(const char *method, const char *unit);
 
 #endif

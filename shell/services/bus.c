@@ -124,3 +124,11 @@ size_t bus_read_paths(sd_bus_message *reply, bus_path_t *out, size_t max)
         count++;
     return count;
 }
+
+bool bus_call_unit(const char *method, const char *unit)
+{
+    sd_bus *bus = bus_system();
+    return bus && sd_bus_call_method(bus, "org.freedesktop.systemd1", "/org/freedesktop/systemd1",
+                                     "org.freedesktop.systemd1.Manager", method, NULL, NULL, "ss", unit,
+                                     "replace") >= 0;
+}

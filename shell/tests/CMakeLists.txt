@@ -4,7 +4,7 @@ foreach(name theme nav)
     add_test(NAME ${name} COMMAND test_${name})
 endforeach()
 
-foreach(name sysinfo timezone backlight audio net bt prefs update notify clock chime)
+foreach(name sysinfo timezone backlight audio net bt prefs update notify clock chime apps)
     add_executable(test_${name} test_${name}.c)
     target_link_libraries(test_${name} PRIVATE slateservices)
     add_test(NAME ${name} COMMAND test_${name})
