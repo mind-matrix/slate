@@ -79,3 +79,45 @@ void update_format_size(uint64_t bytes, char *out, size_t len)
     else
         snprintf(out, len, "%llu KB", (unsigned long long)((bytes + 512) / 1024));
 }
+
+void update_app_line(const update_status_t *status, const char *installed, bool dev, update_app_line_t *out)
+{
+    char size[24];
+    const char *version = installed && installed[0] ? installed : "unknown";
+    out->tone = UPDATE_TONE_MUTED;
+    out->action = NULL;
+    if (dev) {
+        snprintf(out->text, sizeof(out->text), "Version %s · dev build, not updated", version);
+        return;
+    }
+    switch (status->state) {
+    case UPDATE_AVAILABLE:
+        update_format_size(status->size, size, sizeof(size));
+        snprintf(out->text, sizeof(out->text), "Version %s available · %s", status->version, size);
+        out->tone = UPDATE_TONE_ACCENT;
+        out->action = "Update";
+        break;
+    case UPDATE_DOWNLOADING:
+        snprintf(out->text, sizeof(out->text), "Downloading %s · %d%%", status->version, status->progress);
+        out->tone = UPDATE_TONE_ACCENT;
+        break;
+    case UPDATE_INSTALLING:
+        snprintf(out->text, sizeof(out->text), "Installing %s…", status->version);
+        out->tone = UPDATE_TONE_ACCENT;
+        break;
+    case UPDATE_CHECKING:
+        snprintf(out->text, sizeof(out->text), "Version %s · checking…", version);
+        break;
+    case UPDATE_ERROR:
+        snprintf(out->text, sizeof(out->text), "Update didn't finish · version %s kept", version);
+        out->tone = UPDATE_TONE_DANGER;
+        out->action = "Try again";
+        break;
+    case UPDATE_CURRENT:
+        snprintf(out->text, sizeof(out->text), "Version %s · up to date", version);
+        break;
+    default:
+        snprintf(out->text, sizeof(out->text), "Version %s", version);
+        break;
+    }
+}

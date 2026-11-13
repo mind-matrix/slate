@@ -57,3 +57,31 @@ bool update_cancel(void)
     fake.state = UPDATE_AVAILABLE;
     return true;
 }
+
+static update_status_t fake_hello = {
+    .state = UPDATE_AVAILABLE,
+    .version = "0.2.0",
+    .size = 6ull * 1024 * 1024,
+};
+
+void update_read_app(const char *id, update_status_t *out)
+{
+    if (strcmp(id, "hello") != 0) {
+        *out = (update_status_t){ .state = UPDATE_CURRENT };
+        return;
+    }
+    if (fake_hello.state == UPDATE_DOWNLOADING && (fake_hello.progress += 3 * PROGRESS_STEP) >= 100)
+        fake_hello.state = UPDATE_INSTALLING;
+    else if (fake_hello.state == UPDATE_INSTALLING)
+        fake_hello.state = UPDATE_CURRENT;
+    *out = fake_hello;
+}
+
+bool update_start_app_install(const char *id)
+{
+    if (strcmp(id, "hello") != 0)
+        return false;
+    fake_hello.state = UPDATE_DOWNLOADING;
+    fake_hello.progress = 0;
+    return true;
+}

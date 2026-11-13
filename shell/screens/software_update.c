@@ -3,6 +3,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
+#include "apps.h"
+#include "components/app_logo.h"
 #include "components/button.h"
 #include "components/list.h"
 #include "components/switch.h"
@@ -29,6 +31,9 @@
 #define BAR_H 8
 #define COLUMN_GAP 24
 #define TEXT 160
+#define APP_ROW_H 80
+#define APP_LOGO 48
+#define APP_BUTTON_H 48
 
 typedef enum {
     ACTION_NONE,
@@ -54,6 +59,11 @@ typedef struct {
 } view_spec_t;
 
 typedef struct {
+    lv_obj_t *status;
+    lv_obj_t *button;
+} app_row_t;
+
+typedef struct {
     lv_obj_t *tile;
     lv_obj_t *glyph;
     lv_obj_t *title;
@@ -71,6 +81,9 @@ typedef struct {
     action_t primary_action;
     action_t secondary_action;
     char notes_key[UPDATE_TEXT_MAX + 4];
+    app_t apps[APPS_MAX];
+    app_row_t rows[APPS_MAX];
+    size_t app_count;
 } update_view_t;
 
 static update_view_t view;
@@ -269,6 +282,27 @@ static void show_notes(const update_status_t *status)
     }
 }
 
+static uint32_t tone_color(update_tone_t tone)
+{
+    return tone == UPDATE_TONE_ACCENT ? SUI_COLOR_ACCENT : tone == UPDATE_TONE_DANGER ? SUI_COLOR_DANGER
+                                                                                      : SUI_COLOR_TEXT_MUTED;
+}
+
+static void refresh_apps(void)
+{
+    for (size_t i = 0; i < view.app_count; i++) {
+        update_status_t status;
+        update_app_line_t line;
+        update_read_app(view.apps[i].id, &status);
+        update_app_line(&status, view.apps[i].version, view.apps[i].dev, &line);
+        lv_label_set_text(view.rows[i].status, line.text);
+        lv_obj_set_style_text_color(view.rows[i].status, lv_color_hex(tone_color(line.tone)), 0);
+        settings_set_visible(view.rows[i].button, line.action != NULL);
+        if (line.action)
+            sui_button_set_text(view.rows[i].button, line.action);
+    }
+}
+
 static void refresh(void)
 {
     update_status_t status;
@@ -306,6 +340,15 @@ static void refresh(void)
     settings_set_visible(view.auto_card, status.state != UPDATE_DISABLED);
     sui_switch_set(view.auto_switch, auto_enabled());
     show_notes(&status);
+    refresh_apps();
+}
+
+static void on_app_update(lv_event_t *e)
+{
+    const app_t *app = &view.apps[(size_t)(uintptr_t)lv_event_get_user_data(e)];
+    if (!update_start_app_install(app->id))
+        settings_info_dialog("Something went wrong", "Slate couldn't start the app update.");
+    refresh_apps();
 }
 
 static void run_action(action_t action)
@@ -428,7 +471,55 @@ static void add_installed_row(lv_obj_t *list, const char *title, const char *val
     sui_list_row_create(list, &spec);
 }
 
-static void create_details(lv_obj_t *column)
+static void add_app_row(lv_obj_t *card, size_t index)
+{
+    const app_t *app = &view.apps[index];
+    lv_obj_t *row = sui_box_create(card);
+    lv_obj_set_size(row, LV_PCT(100), APP_ROW_H);
+    lv_obj_set_style_pad_hor(row, 20, 0);
+    lv_obj_set_style_pad_column(row, 16, 0);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(row, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    if (index > 0) {
+        lv_obj_set_style_border_side(row, LV_BORDER_SIDE_TOP, 0);
+        lv_obj_set_style_border_width(row, 1, 0);
+        lv_obj_set_style_border_color(row, lv_color_hex(SUI_COLOR_BORDER), 0);
+    }
+    sui_app_logo_create(row, app->logo, app->name, APP_LOGO);
+
+    lv_obj_t *texts = sui_box_create(row);
+    lv_obj_set_width(texts, 0);
+    lv_obj_set_flex_grow(texts, 1);
+    lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_pad_row(texts, 2, 0);
+    lv_obj_t *name = lv_label_create(texts);
+    lv_label_set_text(name, app->name);
+    lv_obj_set_style_text_font(name, sui_font(SUI_TEXT_ROW), 0);
+    view.rows[index].status = lv_label_create(texts);
+    lv_obj_set_width(view.rows[index].status, LV_PCT(100));
+    lv_label_set_long_mode(view.rows[index].status, LV_LABEL_LONG_DOT);
+    lv_obj_set_style_text_font(view.rows[index].status, sui_font(SUI_TEXT_CAPTION), 0);
+
+    view.rows[index].button = sui_button_create(row, "Update", SUI_COLOR_ACCENT, SUI_COLOR_ON_ACCENT);
+    lv_obj_set_height(view.rows[index].button, APP_BUTTON_H);
+    lv_obj_add_event_cb(view.rows[index].button, on_app_update, LV_EVENT_CLICKED, (void *)(uintptr_t)index);
+}
+
+static void create_apps(lv_obj_t *column)
+{
+    view.app_count = apps_list(view.apps, APPS_MAX);
+    if (!view.app_count)
+        return;
+    lv_obj_t *section = settings_section_create(column, "APPS", NULL);
+    lv_obj_t *card = settings_card_create(section);
+    lv_obj_set_height(card, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(card, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_style_clip_corner(card, true, 0);
+    for (size_t i = 0; i < view.app_count; i++)
+        add_app_row(card, i);
+}
+
+static void create_notes(lv_obj_t *column)
 {
     lv_obj_t *section = settings_section_create(column, "", NULL);
     view.notes_title = lv_obj_get_child(lv_obj_get_child(section, 0), 0);
@@ -436,12 +527,15 @@ static void create_details(lv_obj_t *column)
     lv_obj_set_style_pad_all(view.notes, SUI_SPACE_L - 4, 0);
     lv_obj_set_style_pad_row(view.notes, 10, 0);
     lv_obj_set_flex_flow(view.notes, LV_FLEX_FLOW_COLUMN);
+}
 
+static void create_installed(lv_obj_t *column)
+{
     char version[UPDATE_TEXT_MAX];
     sysinfo_device_t device;
     installed_version(version, sizeof(version));
     sysinfo_read_device(&device);
-    section = settings_section_create(column, "INSTALLED", NULL);
+    lv_obj_t *section = settings_section_create(column, "INSTALLED", NULL);
     lv_obj_t *list = sui_list_create(section, LV_PCT(100));
     add_installed_row(list, "Version", version);
     add_installed_row(list, "Channel", "Release");
@@ -467,8 +561,11 @@ static void create(lv_obj_t *screen, void *args)
     view.auto_card = lv_obj_get_parent(view.auto_switch);
     lv_obj_set_height(view.auto_card, SUI_ROW_TALL_H);
     lv_obj_add_event_cb(view.auto_switch, toggle_auto, LV_EVENT_VALUE_CHANGED, NULL);
+    create_installed(left);
 
-    create_details(add_column(columns));
+    lv_obj_t *right = add_column(columns);
+    create_apps(right);
+    create_notes(right);
 }
 
 static void tick(lv_timer_t *timer)

@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include "bus.h"
 #include "sysinfo.h"
 #include "update.h"
@@ -31,4 +32,19 @@ bool update_start_install(void)
 bool update_cancel(void)
 {
     return bus_call_unit("StopUnit", UPDATE_INSTALL_UNIT);
+}
+
+void update_read_app(const char *id, update_status_t *out)
+{
+    char path[UPDATE_PATH_MAX], text[FILE_BUF] = "";
+    snprintf(path, sizeof(path), UPDATE_STATE_DIR "/apps/%s/status", id);
+    sysinfo_read_file(path, text, sizeof(text));
+    update_parse_status(text, out);
+}
+
+bool update_start_app_install(const char *id)
+{
+    char unit[UPDATE_PATH_MAX];
+    snprintf(unit, sizeof(unit), UPDATE_APP_INSTALL_UNIT, id);
+    return bus_call_unit("StartUnit", unit);
 }
