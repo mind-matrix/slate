@@ -31,7 +31,7 @@ install -D -m 755 "$BINARY" "$ROOT/usr/bin/slate-shell"
 install -D -m 644 "$PUBLIC_KEY" "$ROOT/usr/share/slate/update.pub"
 sed -n 's/^- //p' "$NOTES" > "$ROOT/usr/share/slate/notes"
 printf 'SLATE_VERSION=%s\nSLATE_COMMIT=%s\nSLATE_CHANNEL=release\n' "$VERSION" "$COMMIT" > "$ROOT/usr/lib/slate/release"
-chmod 755 "$ROOT/usr/lib/slate/slate-update" "$ROOT/usr/lib/slate/slate-apps"
+chmod 755 "$ROOT/usr/lib/slate/slate-update" "$ROOT/usr/lib/slate/slate-apps" "$ROOT/usr/lib/slate/slate-touch"
 find "$ROOT" -type d -exec chmod 755 {} +
 
 mkdir -p "$ROOT/DEBIAN"

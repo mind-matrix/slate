@@ -1,0 +1,26 @@
+#!/bin/bash
+set -u
+
+DEVICES="${SLATE_TOUCH_DEVICES:-/sys/bus/i2c/devices}"
+DRIVER="${SLATE_TOUCH_DRIVER:-/sys/bus/i2c/drivers/Goodix-TS}"
+TRIES="${SLATE_TOUCH_TRIES:-10}"
+
+unbound() {
+	local device
+	for device in "$DEVICES"/*; do
+		[ -f "$device/name" ] || continue
+		case "$(cat "$device/name")" in
+			gt9*) [ -e "$device/driver" ] || basename "$device" ;;
+		esac
+	done
+}
+
+for _ in $(seq "$TRIES"); do
+	pending="$(unbound)"
+	[ -z "$pending" ] && exit 0
+	for id in $pending; do
+		echo "$id" > "$DRIVER/bind" 2>/dev/null
+	done
+	sleep 1
+done
+exit 0

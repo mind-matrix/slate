@@ -2,7 +2,7 @@
 set -e
 
 if [ "$1" = remove ] || [ "$1" = purge ]; then
-    systemctl disable slate-shell.service slate-update-recover.service slate-apps-sync.service >/dev/null 2>&1 || true
+    systemctl disable slate-shell.service slate-update-recover.service slate-apps-sync.service slate-touch.service >/dev/null 2>&1 || true
     systemctl daemon-reload >/dev/null 2>&1 || true
 fi
 if [ "$1" = purge ]; then

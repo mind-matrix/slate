@@ -1,0 +1,11 @@
+[Unit]
+Description=Bring up the touchscreen if it missed its first probe
+After=systemd-modules-load.service
+Before=slate-shell.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/lib/slate/slate-touch
+
+[Install]
+WantedBy=multi-user.target

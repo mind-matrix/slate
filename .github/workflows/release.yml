@@ -32,6 +32,7 @@ jobs:
           sudo apt-get install -y -q minisign jq
           tests/test-slate-update.sh
           tests/test-slate-apps.sh
+          tests/test-slate-touch.sh
 
       - name: Build the package and manifest
         run: |
