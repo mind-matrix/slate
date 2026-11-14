@@ -1,5 +1,6 @@
 #include "server.h"
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -273,4 +274,21 @@ void sui_windows_on_change(sui_windows_cb_t cb, void *user)
 {
     windows.change_cb = cb;
     windows.change_user = user;
+}
+
+size_t sui_windows_open(char *ids, size_t len, size_t max)
+{
+    size_t count = 0;
+    window_t *w;
+    wl_list_for_each(w, &windows.all, link)
+    {
+        if (!w->mapped || count == max)
+            continue;
+        bool seen = false;
+        for (size_t i = 0; i < count && !seen; i++)
+            seen = strcmp(ids + i * len, w->app) == 0;
+        if (!seen)
+            snprintf(ids + count++ * len, len, "%s", w->app);
+    }
+    return count;
 }

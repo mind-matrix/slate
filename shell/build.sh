@@ -27,7 +27,7 @@ take_snapshots() {
 	local out="${WORK_DIR}/snapshots"
 	mkdir -p "${out}"
 	for screen in "${SCREENS[@]}"; do
-		"${WORK_DIR}/sim/slate-snapshot" "${out}/${screen}.rgb565" "${screen}"
+		SLATE_FAKE_OPEN="hello ava" "${WORK_DIR}/sim/slate-snapshot" "${out}/${screen}.rgb565" "${screen}"
 		python3 "${SYNCED_DIR}/tools/rgb565_to_png.py" "${out}/${screen}.rgb565" "${out}/${screen}.png"
 		echo "${out}/${screen}.png"
 	done

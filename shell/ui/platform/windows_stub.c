@@ -55,3 +55,20 @@ lv_obj_t *sui_layer_system(void)
 {
     return lv_layer_top();
 }
+
+size_t sui_windows_open(char *ids, size_t len, size_t max)
+{
+    /* SLATE_FAKE_OPEN lists app ids, separated by spaces, to preview the drawer's open apps. */
+    const char *list = getenv("SLATE_FAKE_OPEN");
+    size_t count = 0;
+    while (list && *list && count < max) {
+        size_t n = strcspn(list, " ");
+        if (n > 0 && n < len) {
+            memcpy(ids + count * len, list, n);
+            ids[count * len + n] = '\0';
+            count++;
+        }
+        list += n + (list[n] == ' ');
+    }
+    return count;
+}

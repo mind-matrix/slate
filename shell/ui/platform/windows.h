@@ -27,6 +27,9 @@ void sui_windows_home(void);
 /* A one-time activation token that lets the app bring its own window to the front. */
 bool sui_windows_token(const char *app, char *out, size_t len);
 void sui_windows_on_change(sui_windows_cb_t cb, void *user);
+/* Apps with a mapped window, whether in front or hidden behind Home, newest first. Fills up to max ids of
+ * len bytes each and returns how many there are. */
+size_t sui_windows_open(char *ids, size_t len, size_t max);
 
 /* Parent for system UI that sits above app windows: status bar, drawer, dialogs and alerts. */
 lv_obj_t *sui_layer_system(void);

@@ -33,11 +33,15 @@ void apps_parse_app(const char *text, const char *id, app_t *out);
 bool apps_has(const char *list, const char *word);
 size_t apps_count(const char *list);
 void apps_sort(app_t *apps, size_t count);
+/* Always-on apps keep running in the background and are stopped only on purpose: for now, the voice
+ * assistants (apps granted "assistant"), which Slate gives to second-party apps only. */
+bool apps_always_on(const app_t *app);
 
 size_t apps_list(app_t *out, size_t max);
 bool apps_permission_text(const char *permission, char *title, size_t title_len, char *detail, size_t detail_len);
 bool apps_start(const char *id);
 bool apps_restart(const char *id);
+bool apps_stop(const char *id);
 bool apps_running(const char *id);
 
 #endif

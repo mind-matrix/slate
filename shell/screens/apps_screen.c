@@ -5,6 +5,7 @@
 #include "apps.h"
 #include "components/app_logo.h"
 #include "components/header.h"
+#include "components/segmented.h"
 #include "platform/windows.h"
 #include "theme/theme.h"
 
@@ -12,9 +13,15 @@
 #define LOGO 56
 #define BADGE_H 30
 #define TEXT 160
+#define DOT 8
+#define FILTER_W 360
+
+enum { FILTER_ALL, FILTER_RUNNING, FILTER_COUNT };
+static const char *const filter_labels[FILTER_COUNT] = { "All", "Running" };
 
 static struct {
     lv_obj_t *list;
+    lv_obj_t *filter;
     app_t apps[APPS_MAX];
     size_t count;
 } view;
@@ -32,14 +39,19 @@ static lv_obj_t *add_label(lv_obj_t *parent, const char *text, sui_text_t font, 
 
 lv_obj_t *apps_badge_create(lv_obj_t *parent, bool dev)
 {
+    return apps_tag_create(parent, dev ? "Dev build" : "Built-in", dev);
+}
+
+lv_obj_t *apps_tag_create(lv_obj_t *parent, const char *text, bool warning)
+{
     lv_obj_t *badge = sui_box_create(parent);
     lv_obj_set_height(badge, BADGE_H);
     lv_obj_set_style_pad_hor(badge, 12, 0);
     lv_obj_set_style_radius(badge, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(badge, lv_color_hex(dev ? SUI_COLOR_WARNING_FILL : SUI_COLOR_RAISED), 0);
-    lv_obj_set_style_bg_opa(badge, dev ? SUI_TINT_OPA : LV_OPA_COVER, 0);
-    lv_obj_t *label = add_label(badge, dev ? "Dev build" : "Built-in", SUI_TEXT_CAPTION,
-                                dev ? SUI_COLOR_WARNING_FILL : SUI_COLOR_TEXT_MUTED);
+    lv_obj_set_style_bg_color(badge, lv_color_hex(warning ? SUI_COLOR_WARNING_FILL : SUI_COLOR_RAISED), 0);
+    lv_obj_set_style_bg_opa(badge, warning ? SUI_TINT_OPA : LV_OPA_COVER, 0);
+    lv_obj_t *label = add_label(badge, text, SUI_TEXT_CAPTION,
+                                warning ? SUI_COLOR_WARNING_FILL : SUI_COLOR_TEXT_MUTED);
     lv_obj_center(label);
     return badge;
 }
@@ -58,12 +70,43 @@ static void open_app(lv_event_t *e)
     sui_nav_push(&app_detail_screen, &selected);
 }
 
+static void add_status(lv_obj_t *parent, const app_t *app, bool running)
+{
+    lv_obj_t *line = sui_box_create(parent);
+    lv_obj_set_flex_flow(line, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(line, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    lv_obj_set_style_pad_column(line, SUI_SPACE_S, 0);
+    lv_obj_t *dot = sui_box_create(line);
+    lv_obj_set_size(dot, DOT, DOT);
+    lv_obj_set_style_radius(dot, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(dot, lv_color_hex(running ? SUI_COLOR_SUCCESS : SUI_COLOR_TRACK), 0);
+    lv_obj_set_style_bg_opa(dot, LV_OPA_COVER, 0);
+    char detail[TEXT];
+    snprintf(detail, sizeof(detail), "%s%s · version %s", running ? "Running" : "Stopped",
+             apps_always_on(app) ? " · always on" : "", app->version[0] ? app->version : "unknown");
+    add_label(line, detail, SUI_TEXT_BODY, SUI_COLOR_TEXT_MUTED);
+}
+
 static void show(void)
 {
     lv_obj_clean(view.list);
     view.count = apps_list(view.apps, APPS_MAX);
+    bool running[APPS_MAX];
+    size_t running_count = 0;
+    for (size_t i = 0; i < view.count; i++)
+        running_count += (running[i] = apps_running(view.apps[i].id));
+    char label[TEXT];
+    snprintf(label, sizeof(label), "All %zu", view.count);
+    sui_segmented_set_label(view.filter, FILTER_ALL, label);
+    snprintf(label, sizeof(label), "Running %zu", running_count);
+    sui_segmented_set_label(view.filter, FILTER_RUNNING, label);
+    bool only_running = sui_segmented_get(view.filter) == FILTER_RUNNING;
+
+    size_t shown = 0;
     for (size_t i = 0; i < view.count; i++) {
         const app_t *app = &view.apps[i];
+        if (only_running && !running[i])
+            continue;
         lv_obj_t *row = sui_box_create(view.list);
         lv_obj_add_flag(row, LV_OBJ_FLAG_CLICKABLE);
         lv_obj_set_size(row, LV_PCT(100), ROW_H);
@@ -71,7 +114,7 @@ static void show(void)
         lv_obj_set_style_pad_column(row, 20, 0);
         lv_obj_set_style_bg_color(row, lv_color_hex(SUI_COLOR_RAISED), LV_STATE_PRESSED);
         lv_obj_set_style_bg_opa(row, LV_OPA_COVER, LV_STATE_PRESSED);
-        if (i > 0) {
+        if (shown++ > 0) {
             lv_obj_set_style_border_side(row, LV_BORDER_SIDE_TOP, 0);
             lv_obj_set_style_border_width(row, 1, 0);
             lv_obj_set_style_border_color(row, lv_color_hex(SUI_COLOR_BORDER), 0);
@@ -86,18 +129,21 @@ static void show(void)
         lv_obj_set_flex_flow(texts, LV_FLEX_FLOW_COLUMN);
         lv_obj_set_style_pad_row(texts, 3, 0);
         add_label(texts, app->name, SUI_TEXT_ROW, SUI_COLOR_TEXT);
-        char detail[TEXT];
-        size_t permissions = apps_count(app->granted);
-        snprintf(detail, sizeof(detail), "Version %s · %zu permission%s", app->version[0] ? app->version : "unknown",
-                 permissions, permissions == 1 ? "" : "s");
-        add_label(texts, detail, SUI_TEXT_BODY, SUI_COLOR_TEXT_MUTED);
+        add_status(texts, app, running[i]);
         apps_badge_create(row, app->dev);
         add_label(row, LV_SYMBOL_RIGHT, SUI_TEXT_ROW, SUI_COLOR_TEXT_MUTED);
     }
-    if (!view.count) {
-        lv_obj_t *empty = add_label(view.list, "No apps are installed.", SUI_TEXT_BODY, SUI_COLOR_TEXT_MUTED);
+    if (!shown) {
+        lv_obj_t *empty = add_label(view.list, view.count ? "No apps are running." : "No apps are installed.",
+                                    SUI_TEXT_BODY, SUI_COLOR_TEXT_MUTED);
         lv_obj_set_style_pad_all(empty, SUI_SPACE_L, 0);
     }
+}
+
+static void on_filter(lv_event_t *e)
+{
+    (void)e;
+    show();
 }
 
 void apps_summary(char *out, size_t len)
@@ -117,6 +163,14 @@ static void create(lv_obj_t *screen, void *args)
     lv_obj_t *page = sui_page_create(screen, "Apps");
     lv_obj_add_flag(page, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_scroll_dir(page, LV_DIR_VER);
+    lv_obj_t *bar = sui_box_create(page);
+    lv_obj_set_width(bar, SUI_CONTENT_W);
+    lv_obj_set_flex_flow(bar, LV_FLEX_FLOW_ROW);
+    lv_obj_set_flex_align(bar, LV_FLEX_ALIGN_END, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
+    view.filter = sui_segmented_create(bar, filter_labels, FILTER_COUNT, SUI_COLOR_ACCENT);
+    lv_obj_set_width(view.filter, FILTER_W);
+    sui_segmented_set(view.filter, FILTER_ALL);
+    lv_obj_add_event_cb(view.filter, on_filter, LV_EVENT_VALUE_CHANGED, NULL);
     view.list = sui_box_create(page);
     lv_obj_set_size(view.list, SUI_CONTENT_W, LV_SIZE_CONTENT);
     lv_obj_set_flex_flow(view.list, LV_FLEX_FLOW_COLUMN);

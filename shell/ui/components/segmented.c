@@ -69,3 +69,11 @@ size_t sui_segmented_get(lv_obj_t *segmented)
             return i;
     return count;
 }
+
+void sui_segmented_set_label(lv_obj_t *segmented, size_t index, const char *text)
+{
+    lv_obj_t *segment = lv_obj_get_child(segmented, (int32_t)index);
+    lv_obj_t *label = segment ? lv_obj_get_child(segment, 0) : NULL;
+    if (label)
+        lv_label_set_text(label, text);
+}

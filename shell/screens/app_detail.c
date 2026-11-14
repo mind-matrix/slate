@@ -5,6 +5,7 @@
 #include "apps_screen.h"
 #include "components/app_logo.h"
 #include "components/button.h"
+#include "components/dialog.h"
 #include "components/header.h"
 #include "platform/platform.h"
 #include "theme/theme.h"
@@ -14,11 +15,17 @@
 #define LOGO 96
 #define PERMISSION_H 80
 #define TEXT 96
+#define STOP_BODY_MAX 320
 
 static struct {
     app_t app;
     lv_obj_t *status;
+    lv_obj_t *buttons;
+    lv_obj_t *note;
+    lv_obj_t *dialog;
 } view;
+
+static void show_buttons(void);
 
 static lv_obj_t *add_label(lv_obj_t *parent, const char *text, sui_text_t font, uint32_t color)
 {
@@ -55,6 +62,7 @@ static void show_status(void)
     bool running = apps_running(view.app.id);
     lv_label_set_text(view.status, running ? "Running" : "Stopped");
     lv_obj_set_style_text_color(view.status, lv_color_hex(running ? SUI_COLOR_SUCCESS : SUI_COLOR_TEXT_MUTED), 0);
+    show_buttons();
 }
 
 static void on_open(lv_event_t *e)
@@ -69,6 +77,90 @@ static void on_restart(lv_event_t *e)
     (void)e;
     apps_restart(view.app.id);
     show_status();
+}
+
+static void on_start(lv_event_t *e)
+{
+    (void)e;
+    apps_start(view.app.id);
+    show_status();
+}
+
+static void stop(void)
+{
+    apps_stop(view.app.id);
+    show_status();
+}
+
+static void close_dialog(void)
+{
+    if (view.dialog)
+        sui_dialog_close(view.dialog);
+    view.dialog = NULL;
+}
+
+static void on_cancel(lv_event_t *e)
+{
+    (void)e;
+    close_dialog();
+}
+
+static void on_confirm(lv_event_t *e)
+{
+    (void)e;
+    close_dialog();
+    stop();
+}
+
+/* Always-on apps are stopped only after Slate says what stops working. Other apps stop at once. */
+static void on_stop(lv_event_t *e)
+{
+    (void)e;
+    if (!apps_always_on(&view.app)) {
+        stop();
+        return;
+    }
+    char title[TEXT], body[STOP_BODY_MAX], label[TEXT];
+    snprintf(title, sizeof(title), "Stop %s?", view.app.name);
+    snprintf(body, sizeof(body),
+             "%s runs all the time to listen for you and stay connected to your devices. While it's stopped, it "
+             "won't respond or show notifications. It starts again when you open it or restart Slate.",
+             view.app.name);
+    snprintf(label, sizeof(label), "Stop %s", view.app.name);
+    close_dialog();
+    view.dialog = sui_dialog_create(title, body);
+    lv_obj_t *actions = sui_dialog_actions(view.dialog);
+    lv_obj_add_event_cb(sui_button_secondary_create(actions, "Cancel"), on_cancel, LV_EVENT_CLICKED, NULL);
+    lv_obj_t *confirm = sui_button_create(actions, label, SUI_COLOR_DANGER_FILL, SUI_COLOR_WHITE);
+    lv_obj_add_event_cb(confirm, on_confirm, LV_EVENT_CLICKED, NULL);
+}
+
+static void show_buttons(void)
+{
+    if (!view.buttons)
+        return;
+    lv_obj_clean(view.buttons);
+    bool running = apps_running(view.app.id);
+    if (!running) {
+        lv_obj_t *start = sui_button_create(view.buttons, "Start", SUI_COLOR_ACCENT, SUI_COLOR_ON_ACCENT);
+        lv_obj_add_event_cb(start, on_start, LV_EVENT_CLICKED, NULL);
+    } else {
+        if (apps_has(view.app.granted, "gui")) {
+            lv_obj_t *open = sui_button_create(view.buttons, "Open", SUI_COLOR_ACCENT, SUI_COLOR_ON_ACCENT);
+            lv_obj_add_event_cb(open, on_open, LV_EVENT_CLICKED, NULL);
+        }
+        lv_obj_t *restart = sui_button_secondary_create(view.buttons, "Restart app");
+        lv_obj_add_event_cb(restart, on_restart, LV_EVENT_CLICKED, NULL);
+        lv_obj_t *stop_button = sui_button_secondary_create(view.buttons, "Stop");
+        lv_obj_set_style_text_color(stop_button, lv_color_hex(SUI_COLOR_DANGER), 0);
+        lv_obj_add_event_cb(stop_button, on_stop, LV_EVENT_CLICKED, NULL);
+    }
+    if (view.note) {
+        if (!running && apps_always_on(&view.app))
+            lv_obj_remove_flag(view.note, LV_OBJ_FLAG_HIDDEN);
+        else
+            lv_obj_add_flag(view.note, LV_OBJ_FLAG_HIDDEN);
+    }
 }
 
 static void create_card(lv_obj_t *parent)
@@ -89,7 +181,12 @@ static void create_card(lv_obj_t *parent)
     lv_obj_set_flex_flow(titles, LV_FLEX_FLOW_COLUMN);
     lv_obj_set_style_pad_row(titles, 6, 0);
     add_label(titles, app->name, SUI_TEXT_HEADING, SUI_COLOR_TEXT);
-    apps_badge_create(titles, app->dev);
+    lv_obj_t *tags = sui_box_create(titles);
+    lv_obj_set_flex_flow(tags, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(tags, SUI_SPACE_S, 0);
+    apps_badge_create(tags, app->dev);
+    if (apps_always_on(app))
+        apps_tag_create(tags, "Always on", false);
 
     lv_obj_t *facts = sui_box_create(card);
     lv_obj_set_width(facts, LV_PCT(100));
@@ -99,17 +196,17 @@ static void create_card(lv_obj_t *parent)
     add_fact(facts, "Source", app->dev ? "Local checkout" : "GitHub releases");
     add_fact(facts, "Updates", app->dev ? "Off for dev builds" : "With Software update");
     view.status = add_fact(facts, "Status", "");
-    show_status();
 
-    lv_obj_t *buttons = sui_box_create(card);
-    lv_obj_set_flex_flow(buttons, LV_FLEX_FLOW_ROW);
-    lv_obj_set_style_pad_column(buttons, 12, 0);
-    if (apps_has(app->granted, "gui")) {
-        lv_obj_t *open = sui_button_create(buttons, "Open", SUI_COLOR_ACCENT, SUI_COLOR_ON_ACCENT);
-        lv_obj_add_event_cb(open, on_open, LV_EVENT_CLICKED, NULL);
-    }
-    lv_obj_t *restart = sui_button_secondary_create(buttons, "Restart app");
-    lv_obj_add_event_cb(restart, on_restart, LV_EVENT_CLICKED, NULL);
+    view.buttons = sui_box_create(card);
+    lv_obj_set_width(view.buttons, LV_PCT(100));
+    lv_obj_set_flex_flow(view.buttons, LV_FLEX_FLOW_ROW_WRAP);
+    lv_obj_set_style_pad_column(view.buttons, 12, 0);
+    lv_obj_set_style_pad_row(view.buttons, 12, 0);
+    char note[STOP_BODY_MAX];
+    snprintf(note, sizeof(note), "%s stays stopped until you start it here, open it, or restart Slate.", app->name);
+    view.note = add_label(card, note, SUI_TEXT_CAPTION, SUI_COLOR_TEXT_MUTED);
+    lv_obj_set_width(view.note, LV_PCT(100));
+    show_status();
 }
 
 static void create_permissions(lv_obj_t *parent)

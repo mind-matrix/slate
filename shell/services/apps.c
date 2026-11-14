@@ -60,3 +60,8 @@ void apps_sort(app_t *apps, size_t count)
 {
     qsort(apps, count, sizeof(app_t), by_name);
 }
+
+bool apps_always_on(const app_t *app)
+{
+    return apps_has(app->granted, "assistant");
+}

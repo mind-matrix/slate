@@ -14,6 +14,7 @@
 #include "net.h"
 #include "nav/nav.h"
 #include "notification_hub.h"
+#include "open_apps.h"
 #include "notify.h"
 #include "platform/platform.h"
 #include "power_screen.h"
@@ -52,6 +53,7 @@ typedef struct {
     lv_obj_t *brightness;
     lv_obj_t *volume;
     lv_obj_t *hub;
+    lv_obj_t *open_apps;
     lv_timer_t *clock_timer;
     lv_timer_t *refresh_timer;
     int32_t panel_h;
@@ -91,6 +93,7 @@ static void refresh_tiles(lv_timer_t *timer)
         sui_quick_tile_set(drawer.bt, false, "Off");
     else
         sui_quick_tile_set(drawer.bt, true, bt_connected_name(name, sizeof(name)) ? name : "On");
+    open_apps_refresh(drawer.open_apps);
 }
 
 static void refresh_sliders(void)
@@ -414,6 +417,8 @@ void quick_drawer_open(void)
 
     create_top_row(drawer.panel);
     create_controls(drawer.panel);
+    drawer.open_apps = open_apps_create(drawer.panel, quick_drawer_close);
+    lv_obj_set_width(drawer.open_apps, CONTROLS_W);
     create_hub(drawer.panel);
     create_handle(drawer.panel);
 

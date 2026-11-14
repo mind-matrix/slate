@@ -8,5 +8,6 @@
 lv_obj_t *sui_segmented_create(lv_obj_t *parent, const char *const *labels, size_t count, uint32_t color);
 void sui_segmented_set(lv_obj_t *segmented, size_t index);
 size_t sui_segmented_get(lv_obj_t *segmented);
+void sui_segmented_set_label(lv_obj_t *segmented, size_t index, const char *text);
 
 #endif

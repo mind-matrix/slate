@@ -96,6 +96,11 @@ bool apps_restart(const char *id)
     return call("RestartUnit", id);
 }
 
+bool apps_stop(const char *id)
+{
+    return call("StopUnit", id);
+}
+
 bool apps_running(const char *id)
 {
     char unit[APPS_ID_MAX + 24], path[BUS_PATH_MAX], state[32];

@@ -54,17 +54,39 @@ bool apps_permission_text(const char *permission, char *title, size_t title_len,
     return false;
 }
 
+/* Apps run until stopped; the fake remembers which ones were stopped. */
+static char stopped[APPS_MAX][APPS_ID_MAX];
+
+static int stopped_slot(const char *id)
+{
+    for (int i = 0; i < APPS_MAX; i++)
+        if (strcmp(stopped[i], id) == 0)
+            return i;
+    return -1;
+}
+
 bool apps_start(const char *id)
 {
+    int slot = stopped_slot(id);
+    if (slot >= 0)
+        stopped[slot][0] = '\0';
     return apps_valid_id(id);
 }
 
 bool apps_restart(const char *id)
 {
+    return apps_start(id);
+}
+
+bool apps_stop(const char *id)
+{
+    int slot = stopped_slot(id) >= 0 ? -1 : stopped_slot("");
+    if (slot >= 0)
+        snprintf(stopped[slot], sizeof(stopped[slot]), "%s", id);
     return apps_valid_id(id);
 }
 
 bool apps_running(const char *id)
 {
-    return apps_valid_id(id);
+    return apps_valid_id(id) && stopped_slot(id) < 0;
 }
