@@ -24,6 +24,7 @@ typedef struct {
     void (*on_home)(void);
     lv_obj_t *bar;
     lv_obj_t *nav;
+    lv_obj_t *back;
     lv_obj_t *handle;
     lv_obj_t *icons;
     lv_obj_t *mic;
@@ -100,7 +101,7 @@ static void create_nav(lv_obj_t *lead)
     lv_obj_set_flex_flow(status.nav, LV_FLEX_FLOW_ROW);
     lv_obj_set_flex_align(status.nav, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER);
     lv_obj_set_style_pad_column(status.nav, NAV_GAP, 0);
-    add_nav_button(status.nav, LV_SYMBOL_LEFT, back);
+    status.back = add_nav_button(status.nav, LV_SYMBOL_LEFT, back);
     add_nav_button(status.nav, LV_SYMBOL_HOME, home);
     lv_obj_t *divider = sui_box_create(status.nav);
     lv_obj_set_size(divider, 1, DIVIDER_H);
@@ -230,15 +231,20 @@ void sui_status_bar_set_mic(const char *name, bool capturing, void (*on_tap)(voi
     lv_obj_set_style_text_color(label, lv_color_hex(ink), 0);
 }
 
-void sui_status_bar_set_app(bool open, void (*on_back)(void), void (*on_home)(void))
+void sui_status_bar_set_controls(bool show_back, bool show_home, bool over_app, void (*on_back)(void),
+                                 void (*on_home)(void))
 {
     if (!status.bar)
         return;
     status.on_back = on_back;
     status.on_home = on_home;
-    show(status.nav, open);
-    show(status.handle, !open);
+    show(status.nav, show_back || show_home);
+    show(status.back, show_back);
+    show(status.handle, !over_app);
     lv_obj_set_style_bg_color(status.bar, lv_color_hex(SUI_COLOR_BG), 0);
-    lv_obj_set_style_bg_opa(status.bar, open ? APP_BAR_OPA : LV_OPA_TRANSP, 0);
-    lv_obj_set_style_pad_left(status.bar, open ? SUI_SPACE_S : SUI_SPACE_XL, 0);
+    lv_obj_set_style_bg_opa(status.bar, over_app ? APP_BAR_OPA : LV_OPA_TRANSP, 0);
+    int32_t pad_left = show_back || show_home ? SUI_SPACE_S : SUI_SPACE_XL;
+    lv_obj_set_style_pad_left(status.bar, pad_left, 0);
+    /* Keep the pull handle centred on the screen when the left padding shrinks. */
+    lv_obj_align(status.handle, LV_ALIGN_BOTTOM_MID, (SUI_SPACE_XL - pad_left) / 2, -HANDLE_BOTTOM);
 }

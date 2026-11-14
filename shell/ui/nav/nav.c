@@ -12,6 +12,7 @@ typedef struct {
 
 static entry_t stack[SUI_NAV_MAX];
 static size_t depth;
+static void (*change_cb)(void);
 
 static void notify(void (*cb)(lv_obj_t *), lv_obj_t *screen)
 {
@@ -38,6 +39,8 @@ static void show(entry_t *entry)
 {
     lv_screen_load(entry->screen);
     notify(entry->def->on_show, entry->screen);
+    if (change_cb)
+        change_cb();
 }
 
 void sui_nav_init(const sui_screen_def_t *home, void *args)
@@ -92,6 +95,11 @@ void sui_nav_home(void)
     while (depth > 1)
         lv_obj_delete_async(stack[--depth].screen);
     show(&stack[0]);
+}
+
+void sui_nav_on_change(void (*cb)(void))
+{
+    change_cb = cb;
 }
 
 size_t sui_nav_depth(void)

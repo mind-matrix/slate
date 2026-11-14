@@ -225,9 +225,11 @@ int main(int argc, char **argv)
     if (screen != &desktop_screen)
         sui_nav_push(screen, args);
     sui_status_bar_create(lv_layer_top(), quick_drawer_open);
+    if (screen != &desktop_screen)
+        sui_status_bar_set_controls(false, true, false, NULL, NULL);
     open_overlay(name);
     if (strcmp(name, "app_bar") == 0) {
-        sui_status_bar_set_app(true, NULL, NULL);
+        sui_status_bar_set_controls(true, true, true, NULL, NULL);
         sui_status_bar_set_mic("Marvin", false, NULL);
     }
 

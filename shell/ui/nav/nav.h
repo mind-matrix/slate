@@ -18,6 +18,8 @@ void sui_nav_push(const sui_screen_def_t *def, void *args);
 void sui_nav_pop(void);
 void sui_nav_home(void);
 size_t sui_nav_depth(void);
+/* Called after every screen change. */
+void sui_nav_on_change(void (*cb)(void));
 const sui_screen_def_t *sui_nav_top(void);
 
 #endif

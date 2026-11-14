@@ -52,10 +52,26 @@ static void poll_alerts(lv_timer_t *timer)
     update_alerts();
 }
 
+static void go_home(void)
+{
+    if (sui_windows_front())
+        sui_windows_home();
+    else
+        sui_nav_home();
+}
+
+/* Back only over an app (shell screens have their own back arrow); Home over an app or on any shell screen
+ * other than the desktop. */
 static void update_front(void *user)
 {
     (void)user;
-    sui_status_bar_set_app(sui_windows_front() != NULL, sui_windows_back, sui_windows_home);
+    bool over_app = sui_windows_front() != NULL;
+    sui_status_bar_set_controls(over_app, over_app || sui_nav_depth() > 1, over_app, sui_windows_back, go_home);
+}
+
+static void on_navigate(void)
+{
+    update_front(NULL);
 }
 
 static void apply_levels(lv_timer_t *timer)
@@ -74,6 +90,7 @@ int main(void)
     sui_nav_init(&desktop_screen, NULL);
     sui_status_bar_create(sui_layer_system(), quick_drawer_open);
     sui_windows_on_change(update_front, NULL);
+    sui_nav_on_change(on_navigate);
     update_front(NULL);
 
     sd_bus *bus = bus_system();
