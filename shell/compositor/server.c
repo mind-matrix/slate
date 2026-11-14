@@ -125,8 +125,9 @@ static void layer_read(lv_indev_t *indev, lv_indev_data_t *data)
 
 bool shell_layer_init(shell_layer_t *layer, bool alpha)
 {
-    lv_color_format_t cf = alpha ? LV_COLOR_FORMAT_ARGB8888 : LV_COLOR_FORMAT_RGB565;
-    layer->format = alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_RGB565;
+    /* 32-bit colour even for the opaque base layer: 16-bit colour bands visibly on wallpaper gradients. */
+    lv_color_format_t cf = alpha ? LV_COLOR_FORMAT_ARGB8888 : LV_COLOR_FORMAT_XRGB8888;
+    layer->format = alpha ? DRM_FORMAT_ARGB8888 : DRM_FORMAT_XRGB8888;
     layer->premultiply = alpha;
     layer->stride = lv_draw_buf_width_to_stride(SERVER_W, cf);
     size_t size = layer->stride * SERVER_H;
