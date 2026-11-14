@@ -128,6 +128,8 @@ static void toplevel_close(void *data, struct xdg_toplevel *toplevel)
     hello.window_activated = false;
     wl_surface_attach(hello.window.surface, NULL, 0, 0);
     wl_surface_commit(hello.window.surface);
+    /* Unmapping resets the window; this commit starts it over, so Slate can ask for it again. */
+    wl_surface_commit(hello.window.surface);
 }
 
 static const struct xdg_toplevel_listener toplevel_listener = { .configure = toplevel_configure, .close = toplevel_close };

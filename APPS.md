@@ -94,10 +94,11 @@ keyboard when one is attached.
 - While an app is open, the status bar shows Slate's **Back** and **Home**.
   - **Back** sends your toplevel `close`. Treat it as "go back": if you have a previous screen, go to it and keep
     the window. At your first screen, unmap the window (commit a null buffer) and keep running. Slate then shows
-    the desktop.
+    the desktop. Then commit once more without a buffer: under xdg-shell an unmapped window must start
+    over, and Slate can only ask a window that has.
   - **Home** hides your window and shows the desktop. Your app keeps running and isn't told.
-  - When the user opens your app again and your window is unmapped, Slate sends it a configure with the
-    `activated` state. Map the window again when you get it.
+  - When the user opens your app again, Slate sends that window a configure with the `activated` state.
+    Map the window again when you get it.
   - Don't destroy your toplevel on `close` and keep running without a window: Slate has no way to ask for a new
     one. If your toolkit quits when its last window closes, that is fine too; opening the app starts it again.
 - Slate may hand an app an activation token, for example with Setup or Logout on the Voice assistant screen. Pass

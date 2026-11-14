@@ -82,6 +82,9 @@ static void on_commit(struct wl_listener *listener, void *data)
         return;
     wlr_xdg_toplevel_set_size(w->xdg, SERVER_W, SERVER_H - SERVER_APP_Y);
     wlr_xdg_toplevel_set_maximized(w->xdg, true);
+    /* A window that starts over after Back while its app is being opened is asked to show at once. */
+    if (expected(w->app))
+        wlr_xdg_toplevel_set_activated(w->xdg, true);
 }
 
 static void on_map(struct wl_listener *listener, void *data)
