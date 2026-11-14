@@ -80,6 +80,8 @@ check "no stale shell copy in /usr/local" test ! -e "$ROOTFS/usr/local/bin/slate
 check "the shell's compositor library is installed" installed libwlroots-0.18
 check "apps reach the display through a group" grep -q "^slate-display:" "$ROOTFS/etc/group"
 check "the touchscreen is retried at boot" unit_enabled slate-touch.service
+check "Slate's mDNS service starts at boot" unit_enabled slate-mdns.service
+check "the mDNS daemon is installed" test -x "$ROOTFS/usr/lib/slate/mdnsd"
 case "$VARIANT" in
 	dev)
 		check "slate can redeploy the shell" owned_by slate /usr/bin/slate-shell

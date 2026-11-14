@@ -1,0 +1,35 @@
+[Unit]
+Description=Slate shared mDNS service (Apple mDNSResponder)
+After=network.target
+
+[Service]
+# The only mDNS responder on the device. Apps granted the discovery permission reach it
+# through /run/slate-mdns/mdnsd with their own DNS-SD client library.
+User=slate-mdns
+Group=slate-mdns
+ExecStart=/usr/lib/slate/mdnsd -foreground
+RuntimeDirectory=slate-mdns
+RuntimeDirectoryMode=0750
+Restart=on-failure
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+SystemCallArchitectures=native
+CapabilityBoundingSet=
+
+[Install]
+WantedBy=multi-user.target

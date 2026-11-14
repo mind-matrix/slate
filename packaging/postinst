@@ -2,14 +2,16 @@
 set -e
 
 if [ "$1" = configure ]; then
-    for group in slate-display slate-secrets slate-assistant slate-audio; do
+    for group in slate-display slate-secrets slate-assistant slate-audio slate-mdns; do
         getent group "$group" >/dev/null || groupadd --system "$group"
     done
     getent passwd slate-system >/dev/null ||
         useradd --system --no-create-home --home-dir /var/lib/slate-system --shell /usr/sbin/nologin slate-system
+    getent passwd slate-mdns >/dev/null ||
+        useradd --system --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin -g slate-mdns slate-mdns
     systemctl reload dbus.service >/dev/null 2>&1 || true
     systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl enable slate-shell.service slate-update-recover.service slate-apps-sync.service slate-touch.service slate-system.service >/dev/null 2>&1 || true
+    systemctl enable slate-shell.service slate-update-recover.service slate-apps-sync.service slate-touch.service slate-system.service slate-mdns.service >/dev/null 2>&1 || true
     systemctl disable getty@tty1.service >/dev/null 2>&1 || true
 fi
 if [ "$1" = configure ] || [ "$1" = triggered ]; then

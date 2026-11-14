@@ -72,6 +72,23 @@ asks for it in its `.app` file **and** Slate grants it in the app's policy. Ever
 - When stopped, it gets SIGTERM and **60 seconds** to exit. After that, it and everything it started are killed.
   An app cannot extend this.
 
+## Device discovery (`discovery`)
+
+Slate runs one mDNS responder for the whole device: Apple's mDNSResponder (`mdnsd`), built from release
+2881.120.11. Apps must not run their own mDNS daemon or bind UDP port 5353; avahi is not installed and conflicts
+with Slate.
+
+- Talk to it with Apple's DNS-SD API (`dns_sd.h`). **Bring your own client library:** build Apple's client stub
+  (`mDNSShared/dnssd_clientstub.c`, `dnssd_ipc.c`, `dns_sd.h`, Apache 2.0) into your app, from the same or an
+  older mDNSResponder release. Slate doesn't install `libdns_sd`. On Linux the stub needs `-I mDNSCore -I mDNSShared
+  -D_GNU_SOURCE -DNOT_HAVE_SA_LEN -DHAVE_IPV6 -DMDNS_NO_STRICT=1`. avahi's compatibility library doesn't work: it
+  talks to avahi, not to `mdnsd`.
+- With `discovery`, Slate sets `DNSSD_UDS_PATH=/run/slate-mdns/mdnsd`, which the client stub uses to find the
+  daemon. Without the permission the socket can't be reached, whatever library the app links.
+- Register and browse your own services as usual, using the device's host name as their target. Slate's daemon
+  advertises the device's name and addresses (`slate.local`) while any service is registered; apps don't
+  advertise addresses themselves.
+
 ## Windows and overlays
 
 Slate's shell is the Wayland compositor. An app with `gui` or `overlay` finds it through `WAYLAND_DISPLAY`

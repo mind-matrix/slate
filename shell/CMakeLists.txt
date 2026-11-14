@@ -178,6 +178,21 @@ target_compile_options(slate-shell PRIVATE -Wall -Wextra)
 add_executable(slate-snapshot tools/snapshot.c)
 target_link_libraries(slate-snapshot PRIVATE slatescreens)
 
+# Slate's shared mDNS daemon: Apple's mDNSResponder, pinned and checked, built without TLS.
+# Apps bring their own DNS-SD client and reach it through DNSSD_UDS_PATH (see APPS.md).
+if(SLATE_BACKEND STREQUAL "wlr")
+    include(ExternalProject)
+    ExternalProject_Add(mdnsresponder
+        URL https://github.com/apple-oss-distributions/mDNSResponder/archive/refs/tags/mDNSResponder-2881.120.11.tar.gz
+        URL_HASH SHA256=f665cf02b5c930f9b70fb39b7567f03dd821997594c56ce399098eaa0372fb15
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+        PATCH_COMMAND sh ${CMAKE_CURRENT_SOURCE_DIR}/tools/patch-mdnsd.sh
+        CONFIGURE_COMMAND ""
+        BUILD_IN_SOURCE TRUE
+        BUILD_COMMAND make -C mDNSPosix os=linux tls=no Daemon
+        INSTALL_COMMAND ${CMAKE_COMMAND} -E copy mDNSPosix/build/prod/mdnsd ${CMAKE_BINARY_DIR}/mdnsd)
+endif()
+
 if(SLATE_BACKEND STREQUAL "wlr")
     pkg_check_modules(SODIUM REQUIRED IMPORTED_TARGET libsodium)
     add_executable(slate-system system/main.c system/vault.c)
