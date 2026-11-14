@@ -72,3 +72,7 @@ size_t sui_windows_open(char *ids, size_t len, size_t max)
     }
     return count;
 }
+
+void sui_windows_dismiss_overlays(void)
+{
+}

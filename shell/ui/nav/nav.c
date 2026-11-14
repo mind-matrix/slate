@@ -1,5 +1,6 @@
 #include "nav/nav.h"
 
+#include "platform/windows.h"
 #include "theme/theme.h"
 
 #define EDGE_SWIPE_W 24
@@ -45,8 +46,19 @@ void sui_nav_init(const sui_screen_def_t *home, void *args)
     sui_nav_push(home, args);
 }
 
+/* The shell's screens sit below app windows and overlays, so showing one sends the app in front to the
+ * background, as Home does, and closes overlays, as a tap outside them does. Otherwise a screen opened from
+ * the drawer would open behind them. */
+static void bring_shell_forward(void)
+{
+    if (sui_windows_front())
+        sui_windows_home();
+    sui_windows_dismiss_overlays();
+}
+
 void sui_nav_push(const sui_screen_def_t *def, void *args)
 {
+    bring_shell_forward();
     if (depth == SUI_NAV_MAX)
         return;
     if (depth)
@@ -73,6 +85,7 @@ void sui_nav_pop(void)
 
 void sui_nav_home(void)
 {
+    bring_shell_forward();
     if (depth < 2)
         return;
     notify(stack[depth - 1].def->on_hide, stack[depth - 1].screen);

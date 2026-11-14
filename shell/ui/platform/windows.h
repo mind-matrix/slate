@@ -24,6 +24,8 @@ const char *sui_windows_front(void);
 void sui_windows_back(void);
 /* System Home: hides the app's window and shows the desktop. The app keeps running. */
 void sui_windows_home(void);
+/* Closes every overlay, as a tap outside them does. */
+void sui_windows_dismiss_overlays(void);
 /* A one-time activation token that lets the app bring its own window to the front. */
 bool sui_windows_token(const char *app, char *out, size_t len);
 void sui_windows_on_change(sui_windows_cb_t cb, void *user);

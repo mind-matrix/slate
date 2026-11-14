@@ -120,6 +120,8 @@ struct wlr_surface *overlays_surface_at(double x, double y, double *sx, double *
 void overlays_dismiss(void)
 {
     overlay_t *overlay, *next;
+    if (!overlays.all.next)
+        return;
     wl_list_for_each_safe(overlay, next, &overlays.all, link) if (overlay->mapped)
         wlr_layer_surface_v1_destroy(overlay->surface);
 }
