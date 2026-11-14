@@ -20,6 +20,7 @@
 #include "display_settings.h"
 #include "idle.h"
 #include "platform/platform.h"
+#include "prefs.h"
 #include "power_screen.h"
 #include "quick_drawer.h"
 #include "settings.h"
@@ -29,6 +30,7 @@
 #include "theme/theme.h"
 #include "timezone_picker.h"
 #include "wifi.h"
+#include "wallpaper_screen.h"
 #include "wifi_join.h"
 
 #define SETTLE_MS 1500
@@ -37,6 +39,7 @@ static const sui_screen_def_t *const screens[] = {
     &desktop_screen,  &settings_screen, &about_screen, &diagnostics_screen, &datetime_screen,
     &timezone_picker_screen, &wifi_screen, &bluetooth_screen, &display_screen, &sound_screen,
     &power_screen, &terminal_screen, &software_update_screen, &clock_app_screen, &apps_screen, &voice_assistant_screen,
+    &wallpaper_screen,
 };
 
 static const sui_screen_def_t *find_screen(const char *name)
@@ -187,7 +190,8 @@ int main(int argc, char **argv)
     bool clock = is_clock_tab(name, &tab) || sheet;
     bool detail = strcmp(name, "app_detail") == 0;
     bool app_bar = strcmp(name, "app_bar") == 0;
-    const sui_screen_def_t *screen = drawer || app_bar ? &desktop_screen
+    const char *paper = strncmp(name, "desktop_", 8) == 0 ? name + 8 : NULL;
+    const sui_screen_def_t *screen = drawer || app_bar || paper ? &desktop_screen
                                      : detail ? &app_detail_screen
                                      : join   ? &wifi_screen
                                      : clock ? &clock_app_screen
@@ -198,6 +202,8 @@ int main(int argc, char **argv)
     }
 
     seed_home();
+    if (paper)
+        prefs_set_text("wallpaper", paper);
     sui_headless_init();
     sui_theme_init();
     idle_start();

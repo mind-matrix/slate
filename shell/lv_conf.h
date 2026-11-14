@@ -23,6 +23,8 @@
 #define LV_FS_STDIO_PATH ""
 #define LV_FS_STDIO_CACHE_SIZE 0
 
+#define LV_GRADIENT_MAX_STOPS 4
+
 #define LV_USE_LOG 1
 #define LV_LOG_LEVEL LV_LOG_LEVEL_WARN
 #define LV_LOG_PRINTF 1

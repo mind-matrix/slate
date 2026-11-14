@@ -167,7 +167,8 @@ add_library(slatescreens STATIC
     screens/apps_screen.c
     screens/app_detail.c
     screens/voice_assistant.c
-    screens/open_apps.c)
+    screens/open_apps.c
+    screens/wallpaper_screen.c)
 target_include_directories(slatescreens PUBLIC screens)
 target_link_libraries(slatescreens PUBLIC slateui slateservices PkgConfig::VTERM)
 target_compile_options(slatescreens PRIVATE -Wall -Wextra)

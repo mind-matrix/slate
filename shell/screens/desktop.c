@@ -11,6 +11,7 @@
 #include "components/wallpaper.h"
 #include "platform/platform.h"
 #include "theme/theme.h"
+#include "wallpaper_screen.h"
 
 #define GRID_PAD_HOR 64
 #define GRID_PAD_VER 56
@@ -32,6 +33,7 @@ static const builtin_t builtins[] = {
 };
 
 static struct {
+    lv_obj_t *wallpaper;
     lv_obj_t *grid;
     app_t installed[APPS_MAX];
     size_t count;
@@ -87,7 +89,7 @@ static void watch(lv_timer_t *timer)
 static void create(lv_obj_t *screen, void *args)
 {
     (void)args;
-    sui_wallpaper_create(screen);
+    view.wallpaper = sui_wallpaper_create(screen, wallpaper_current());
 
     lv_obj_t *grid = sui_box_create(screen);
     lv_obj_set_size(grid, SUI_SCREEN_W, SUI_SCREEN_H - SUI_STATUS_BAR_H);
@@ -105,6 +107,7 @@ static void create(lv_obj_t *screen, void *args)
 static void on_show(lv_obj_t *screen)
 {
     (void)screen;
+    sui_wallpaper_set(view.wallpaper, wallpaper_current());
     view.changed_at = apps_changed_at();
     view.timer = lv_timer_create(watch, WATCH_MS, NULL);
 }
