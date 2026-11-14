@@ -96,9 +96,28 @@ static void layer_flush(lv_display_t *display, const lv_area_t *area, uint8_t *p
     lv_display_flush_ready(display);
 }
 
+void shell_layer_touch(shell_layer_t *layer, int32_t x, int32_t y, bool pressed)
+{
+    size_t n = layer->queued;
+    /* When full, keep the newest change in place of the last one rather than drop it. */
+    if (n == SHELL_TOUCH_QUEUE)
+        n--;
+    layer->queue[n].x = x;
+    layer->queue[n].y = y;
+    layer->queue[n].pressed = pressed;
+    layer->queued = n + 1;
+}
+
 static void layer_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
     shell_layer_t *layer = lv_indev_get_driver_data(indev);
+    if (layer->queued) {
+        layer->x = layer->queue[0].x;
+        layer->y = layer->queue[0].y;
+        layer->pressed = layer->queue[0].pressed;
+        memmove(layer->queue, layer->queue + 1, --layer->queued * sizeof(layer->queue[0]));
+        data->continue_reading = layer->queued > 0;
+    }
     data->point.x = layer->x;
     data->point.y = layer->y;
     data->state = layer->pressed ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
@@ -129,7 +148,6 @@ bool shell_layer_init(shell_layer_t *layer, bool alpha)
     lv_indev_set_read_cb(layer->indev, layer_read);
     lv_indev_set_driver_data(layer->indev, layer);
     lv_indev_set_display(layer->indev, layer->display);
-    lv_indev_set_mode(layer->indev, LV_INDEV_MODE_EVENT);
     return true;
 }
 
@@ -345,8 +363,11 @@ static void dispatch(int fd, void *user)
     wl_event_loop_dispatch(server.loop, 0);
 }
 
+/* Runs before the main loop waits. wlroots queues output frames as idle callbacks, which never wake
+ * the loop on their own, so run them here or a finished frame waits for the next input event. */
 static void flush_clients(void)
 {
+    wl_event_loop_dispatch_idle(server.loop);
     wl_display_flush_clients(server.display);
 }
 

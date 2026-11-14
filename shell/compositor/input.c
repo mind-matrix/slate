@@ -39,6 +39,8 @@ static struct {
     target_t target;
     int points;
     int32_t primary;
+    double release_x;
+    double release_y;
     shell_layer_t *layer;
     struct wlr_surface *surface;
     double origin_x;
@@ -110,10 +112,9 @@ static void choose_target(double x, double y)
 
 static void shell_point(double x, double y, bool pressed)
 {
-    input.layer->x = (int32_t)x;
-    input.layer->y = (int32_t)y;
-    input.layer->pressed = pressed;
-    lv_indev_read(input.layer->indev);
+    input.release_x = x;
+    input.release_y = y;
+    shell_layer_touch(input.layer, (int32_t)x, (int32_t)y, pressed);
 }
 
 static void on_touch_down(struct wl_listener *listener, void *data)
@@ -151,7 +152,7 @@ static void on_touch_motion(struct wl_listener *listener, void *data)
 static void release(int32_t touch_id, uint32_t time_msec)
 {
     if (input.target == TARGET_SHELL && touch_id == input.primary)
-        shell_point(input.layer->x, input.layer->y, false);
+        shell_point(input.release_x, input.release_y, false);
     else if (input.target == TARGET_CLIENT)
         wlr_seat_touch_notify_up(server.seat, time_msec, touch_id);
     if (input.points > 0 && --input.points == 0)

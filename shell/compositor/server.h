@@ -32,6 +32,7 @@
 #define SERVER_W SUI_SCREEN_W
 #define SERVER_H SUI_SCREEN_H
 #define SERVER_APP_Y SUI_STATUS_BAR_H
+#define SHELL_TOUCH_QUEUE 32
 
 /* A shell-drawn layer: an LVGL display rendering into a CPU buffer that sits in the scene. */
 typedef struct {
@@ -46,6 +47,13 @@ typedef struct {
     pixman_region32_t damage;
     int32_t x, y;
     bool pressed;
+    /* Touch changes waiting for LVGL's next read, oldest first, so taps shorter than LVGL's
+     * read period still deliver both the press and the release. */
+    struct {
+        int32_t x, y;
+        bool pressed;
+    } queue[SHELL_TOUCH_QUEUE];
+    size_t queued;
 } shell_layer_t;
 
 typedef struct window window_t;
@@ -78,6 +86,7 @@ typedef struct {
 extern server_t server;
 
 bool shell_layer_init(shell_layer_t *layer, bool alpha);
+void shell_layer_touch(shell_layer_t *layer, int32_t x, int32_t y, bool pressed);
 
 void windows_init(void);
 struct wlr_surface *windows_surface_at(double x, double y, double *sx, double *sy);
