@@ -1,14 +1,21 @@
 #!/bin/sh
-# Hello, the test app. Its UI runs while Slate gives it a display; the loop below is the
-# app's background work. With $HOME/ignore-term it ignores SIGTERM, to test the stop limit.
+# Hello, the test app. Its UI runs while Slate gives it a display and is started again if it
+# exits, for example when the shell restarts. The loop is the app's background work. With
+# $HOME/ignore-term it ignores SIGTERM, to test the stop limit.
 UI=
-if [ -n "${WAYLAND_DISPLAY:-}" ]; then
-	/usr/lib/slate-apps/hello/hello-ui &
-	UI=$!
-fi
+start_ui() {
+	if [ -n "${WAYLAND_DISPLAY:-}" ]; then
+		/usr/lib/slate-apps/hello/hello-ui &
+		UI=$!
+	fi
+}
 trap 'if [ ! -e "$HOME/ignore-term" ]; then [ -n "$UI" ] && kill "$UI" 2>/dev/null; exit 0; fi' TERM
+start_ui
 while :; do
 	date +%s > "$HOME/heartbeat"
+	if [ -n "$UI" ] && ! kill -0 "$UI" 2>/dev/null; then
+		start_ui
+	fi
 	sleep 5 &
 	wait $!
 done

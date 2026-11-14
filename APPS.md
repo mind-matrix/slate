@@ -101,6 +101,8 @@ keyboard when one is attached.
     Map the window again when you get it.
   - Don't destroy your toplevel on `close` and keep running without a window: Slate has no way to ask for a new
     one. If your toolkit quits when its last window closes, that is fine too; opening the app starts it again.
+- If your display connection closes (the shell restarts, for example during an update), connect again and create
+  your window again, or exit with a failure status so the app is restarted.
 - Slate may hand an app an activation token, for example with Setup or Logout on the Voice assistant screen. Pass
   it to `xdg_activation_v1.activate` with your window's surface to come to the front. Each token works once, for
   the app it was issued to, and expires after 30 seconds.
